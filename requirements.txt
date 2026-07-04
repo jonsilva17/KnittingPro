@@ -1,0 +1,9 @@
+flask
+flask-cors
+python-dotenv
+gunicorn
+Pillow
+numpy
+reportlab
+opencv-python-headless
+requests
