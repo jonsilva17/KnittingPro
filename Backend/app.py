@@ -26,6 +26,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 
+@app.route('/')
+def index():
+    return jsonify({"status": "ok", "app": "Pointy Lines", "version": "1.0"})
+
 @app.route('/api/convert', methods=['POST'])
 def convert_image():
     try:
