@@ -1489,7 +1489,7 @@ export default function StitchEditorScreen({ navigation }) {
       {sections.map((sec, idx) => (
         <View key={sec.key} style={{ marginBottom: 16, width: '100%' }}>
           <Text style={styles.sectionLabel}>{secLabel(sec)} — {sec.width}×{sec.height}</Text>
-          <View style={{ width: '100%', borderWidth: 3, borderColor: '#1A237E', borderRadius: 10, backgroundColor: '#FFF' }}>
+          <View style={{ width: '100%', borderWidth: 3, borderColor: '#1A237E', borderRadius: 10, backgroundColor: '#FFF', overflow: 'auto', maxHeight: '65vh' }}>
             <GridCanvas
               grid={sec.grid}
               cellSize={cellSize}
