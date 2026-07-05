@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npx expo export --platform web",
-  "outputDirectory": "dist",
+  "buildCommand": "cd KnittingPatternMaker && npx expo export --platform web",
+  "outputDirectory": "KnittingPatternMaker/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
