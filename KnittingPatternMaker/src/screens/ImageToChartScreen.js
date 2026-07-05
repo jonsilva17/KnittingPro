@@ -11,14 +11,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLang } from '../lang';
-import { imageToChart, imageToChartAI, uriToBase64 } from '../services/ApiService';
+import { imageToChartAI, uriToBase64 } from '../services/ApiService';
 import PatternPicker from '../components/PatternPicker';
 import * as ImagePicker from 'expo-image-picker';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-const AI_PROVIDERS = [
-  { key: 'openai', label: 'OpenAI GPT-4o', color: '#10A37F' },
-];
 
 export default function ImageToChartScreen({ navigation }) {
   const { t } = useLang();
@@ -29,8 +26,6 @@ export default function ImageToChartScreen({ navigation }) {
   const [imageBase64, setImageBase64] = useState(null);
   const [loading, setLoading] = useState(false);
   const [patternPicker, setPatternPicker] = useState(false);
-  const [aiMode, setAiMode] = useState(false);
-  const [aiProvider, setAiProvider] = useState('openai');
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -68,20 +63,18 @@ export default function ImageToChartScreen({ navigation }) {
     }
     setLoading(true);
     try {
-      const options = {
+      const result = await imageToChartAI({
         image_base64: imageBase64,
         size_key: size,
         pattern_key: patternKey,
         gauge_st: 22,
         gauge_rows: 30,
-      };
-      const result = aiMode
-        ? await imageToChartAI({ ...options, provider: aiProvider })
-        : await imageToChart(options);
+        provider: 'openai',
+      });
 
       navigation.navigate('StitchEditor', { initialSections: result.sections });
     } catch (e) {
-      Alert.alert(t.imageToChartError, e.message || (aiMode ? 'Verifica se a chave de API está configurada no servidor' : ''));
+      Alert.alert(t.imageToChartError, e.message || 'Verifica se a chave de API está configurada no servidor');
     } finally {
       setLoading(false);
     }
@@ -97,28 +90,9 @@ export default function ImageToChartScreen({ navigation }) {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t.imageToChartTitle}</Text>
 
-      <View style={styles.aiToggleRow}>
-        <TouchableOpacity
-          style={[styles.aiToggleBtn, !aiMode && styles.aiToggleActive]}
-          onPress={() => setAiMode(false)}
-        >
-          <Text style={[styles.aiToggleText, !aiMode && styles.aiToggleTextActive]}>
-            {t.imageToChartSimple || 'Simples'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.aiToggleBtn, aiMode && styles.aiToggleActive]}
-          onPress={() => setAiMode(true)}
-        >
-          <Text style={[styles.aiToggleText, aiMode && styles.aiToggleTextActive]}>AI</Text>
-        </TouchableOpacity>
-      </View>
-
-      {aiMode && (
-        <Text style={styles.aiNote}>
-          {t.imageToChartAiNote || 'Usa OpenAI GPT-4o. Requer OPENAI_API_KEY configurada no servidor Render'}
-        </Text>
-      )}
+      <Text style={styles.aiNote}>
+        {t.imageToChartAiNote || 'Usa OpenAI GPT-4o. Requer OPENAI_API_KEY configurada no servidor Render'}
+      </Text>
 
       <Text style={styles.sectionTitle}>{t.imageToChartSize}</Text>
       <View style={styles.sizeRow}>
@@ -158,7 +132,7 @@ export default function ImageToChartScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.actionBtn, { backgroundColor: aiMode ? '#B565A7' : '#4A8B6F' }]}
+        style={[styles.actionBtn, { backgroundColor: '#B565A7' }]}
         onPress={handleConvert}
         disabled={loading || !imageBase64}
       >
@@ -166,7 +140,7 @@ export default function ImageToChartScreen({ navigation }) {
           <ActivityIndicator color="#FFF" />
         ) : (
           <Text style={styles.actionBtnText}>
-            {aiMode ? '🤖 AI ' + (t.imageToChartAutoFill || 'Converter') : t.imageToChartAutoFill}
+            {'🤖 AI ' + (t.imageToChartAutoFill || 'Converter')}
           </Text>
         )}
       </TouchableOpacity>
@@ -201,28 +175,6 @@ const styles = StyleSheet.create({
     color: '#6B4F8A',
     marginBottom: 20,
     textAlign: 'center',
-  },
-  aiToggleRow: {
-    flexDirection: 'row',
-    backgroundColor: '#E8DEF0',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  aiToggleBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-  },
-  aiToggleActive: {
-    backgroundColor: '#6B4F8A',
-  },
-  aiToggleText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B4F8A',
-  },
-  aiToggleTextActive: {
-    color: '#FFFFFF',
   },
   aiNote: {
     fontSize: 11,

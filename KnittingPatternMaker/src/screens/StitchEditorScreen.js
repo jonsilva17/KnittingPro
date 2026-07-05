@@ -39,10 +39,14 @@ const GARMENT_TYPES = [
 ];
 
 const SIZE_CHART = {
-  S:  { chest: 45,  length: 56, sleeve: 46 },
-  M:  { chest: 49,  length: 58, sleeve: 48 },
-  L:  { chest: 53,  length: 60, sleeve: 50 },
-  XL: { chest: 57,  length: 62, sleeve: 52 },
+  XS: { chest: 41, length: 54, sleeve: 44 },
+  S:  { chest: 45, length: 56, sleeve: 46 },
+  M:  { chest: 49, length: 58, sleeve: 48 },
+  L:  { chest: 53, length: 60, sleeve: 50 },
+  XL: { chest: 57, length: 62, sleeve: 52 },
+  '2XL': { chest: 61, length: 64, sleeve: 54 },
+  '3XL': { chest: 65, length: 66, sleeve: 56 },
+  '4XL': { chest: 69, length: 68, sleeve: 58 },
 };
 
 const SECTION_DEFS = {

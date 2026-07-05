@@ -12,7 +12,7 @@ import ScrollWrapper from '../components/ScrollWrapper';
 import Slider from '@react-native-community/slider';
 import { createSweaterPattern, fetchStitchPatterns } from '../services/ApiService';
 
-const SIZES = ['S', 'M', 'L', 'XL'];
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 const SLEEVE_STYLES = [
   { key: 'set-in', label: 'Manga Set-in' },
   { key: 'raglan', label: 'Manga Raglan' },
