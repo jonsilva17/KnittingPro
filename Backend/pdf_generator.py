@@ -1789,51 +1789,49 @@ def draw_chart(c, grid, title, label_top, cell_size_override=None):
         ry = cy - y * cell_size + cell_size / 2
         c.drawRightString(cx - 4, ry - num_fs * 0.35, str(rn))
 
-    max_label = 1
-    for r in grid:
-        for s in r:
-            sl = len(STITCH_SYMBOLS.get(s, {}).get("symbol", "?"))
-            if sl > max_label:
-                max_label = sl
-    fs = min(cell_size * 0.55, cell_size / max_label * 0.9)
-    fs = max(fs, 4)
-
-    stitch_colors = {
+    stitch_bg = {
         "m": "#FFFFFF", "l": "#D4E6F1", "t": "#A9DFBF",
         "b": "#FADBD8", "bo": "#D7BDE2", "2pm": "#F9E79F", "3pm": "#F5CBA7",
     }
+    _grid_cell_size = cell_size
+    _grid_cx = cx
+    _grid_cy = cy
+
+    # Grid lines (light grey background grid)
+    c.setStrokeColor(HexColor("#D0D0D0"))
+    c.setLineWidth(0.3)
+    for y in range(chart_h + 1):
+        yy = _grid_cy - y * _grid_cell_size
+        c.line(_grid_cx, yy, _grid_cx + chart_w * _grid_cell_size, yy)
+    for x in range(chart_w + 1):
+        xx = _grid_cx + x * _grid_cell_size
+        c.line(xx, _grid_cy, xx, _grid_cy - chart_h * _grid_cell_size)
+
+    # Cells
     for y, row in enumerate(grid):
         for x, stitch in enumerate(row):
-            px = cx + x * cell_size
-            py = cy - y * cell_size
-            cx2 = px + cell_size / 2
-            cy2 = py + cell_size / 2
-            r = cell_size * 0.42
+            px = _grid_cx + x * _grid_cell_size + 0.5
+            py = _grid_cy - y * _grid_cell_size - _grid_cell_size + 0.5
+            pw = _grid_cell_size - 1
+            ph = _grid_cell_size - 1
             if stitch == "_":
                 c.setFillColor(HexColor("#E8E8E8"))
-                c.setStrokeColor(HexColor("#E0E0E0"))
-                c.setLineWidth(0.2)
-                c.circle(cx2, cy2, r, fill=1, stroke=1)
+                c.rect(px, py, pw, ph, fill=1, stroke=0)
             elif stitch != "m":
-                bg = stitch_colors.get(stitch, "#FFFFFF")
+                bg = stitch_bg.get(stitch, "#FFFFFF")
                 c.setFillColor(HexColor(bg))
-                c.setStrokeColor(HexColor("#CCCCCC"))
-                c.setLineWidth(0.3)
-                c.circle(cx2, cy2, r, fill=1, stroke=1)
-            else:
-                c.setStrokeColor(HexColor("#CCCCCC"))
-                c.setLineWidth(0.3)
-                c.circle(cx2, cy2, r, fill=0, stroke=1)
+                c.rect(px, py, pw, ph, fill=1, stroke=0)
 
+            # Label
             if stitch in STITCH_SYMBOLS:
                 sym = STITCH_SYMBOLS[stitch]["symbol"]
-                c.setFont("Helvetica", fs)
+                c.setFont("Helvetica", _grid_cell_size * 0.5)
                 c.setFillColor(HexColor("#222222"))
-                tw = c.stringWidth(sym, "Helvetica", fs)
-                c.drawString(px + (cell_size - tw) / 2, py + (cell_size - fs) * 0.35, sym)
+                tw = c.stringWidth(sym, "Helvetica", _grid_cell_size * 0.5)
+                c.drawString(px + (pw - tw) / 2, py + (ph - _grid_cell_size * 0.5) * 0.35, sym)
 
     # Legend
-    ly = cy - chart_h * cell_size - 16
+    ly = _grid_cy - chart_h * _grid_cell_size - 16
     c.setFont("Helvetica-Bold", 10)
     c.setFillColor(HexColor("#333333"))
     c.drawString(MARGIN, ly, "Legenda:")
@@ -1848,23 +1846,16 @@ def draw_chart(c, grid, title, label_top, cell_size_override=None):
         if stitch_key in STITCH_SYMBOLS:
             sx = MARGIN + (col % 2) * 130
             sy = ly - (col // 2) * 16
-            stitch_colors = {
-                "m": "#FFFFFF",
-                "l": "#D4E6F1",
-                "t": "#A9DFBF",
-                "b": "#FADBD8",
-                "bo": "#D7BDE2",
-                "2pm": "#F9E79F",
-                "3pm": "#F5CBA7",
-            }
-            swatch_color = stitch_colors.get(stitch_key, "#FFFFFF")
+            swatch_color = stitch_bg.get(stitch_key, "#FFFFFF")
             if stitch_key != "m":
                 c.setFillColor(HexColor(swatch_color))
-                c.circle(sx + 4, sy + 2, 4, fill=1, stroke=0)
+                c.setStrokeColor(HexColor("#CCCCCC"))
+                c.setLineWidth(0.2)
+                c.rect(sx, sy, 8, 8, fill=1, stroke=1)
             c.setFillColor(HexColor("#222222"))
             c.setFont("Helvetica", 9)
             lab = STITCH_SYMBOLS[stitch_key]["symbol"]
-            c.drawString(sx + 10, sy, f"{lab} = {STITCH_SYMBOLS[stitch_key]['name']}")
+            c.drawString(sx + 12, sy + 1, f"{lab} = {STITCH_SYMBOLS[stitch_key]['name']}")
             col += 1
 
 
