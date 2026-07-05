@@ -1766,13 +1766,13 @@ def draw_chart(c, grid, title, label_top, cell_size_override=None):
 
     mw = WIDTH - 2 * MARGIN
     mh = HEIGHT - 2 * MARGIN - 110
-    cell_size = cell_size_override or min(mw // max(chart_w, 1), mh // max(chart_h, 1), 10)
+    cell_size = cell_size_override or min(mw // max(chart_w, 1), mh // max(chart_h, 1), 14)
     cell_size = max(cell_size, 4)
 
     label_w = 16
     header_h = 12
     avail_w = mw - label_w
-    cx = MARGIN + label_w + (avail_w - chart_w * cell_size) / 2
+    cx = MARGIN + label_w
     cy = HEIGHT - MARGIN - 45 - header_h
 
     # Column numbers (top)

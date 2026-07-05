@@ -140,8 +140,54 @@ GARMENT_TEMPLATES = {
     },
 }
 
+def _describe_row(row):
+    """Describe a single row's stitch pattern in text.
+    Returns (pattern_description, is_ribbing, has_fora).
+    """
+    total = len(row)
+    active = [c for c in row if c != '_']
+    has_fora = len(active) < total
+    if not active:
+        return "fora da peça", False, True
+    unique = sorted(set(active))
+    st_names = {'m': 'meia', 'l': 'liga', 't': 'torcido', 'b': 'buraco',
+                'bo': 'bola', '2pm': '2pM', '3pm': '3pM'}
+    if len(unique) == 1:
+        st = st_names.get(unique[0], unique[0])
+        if has_fora:
+            return f"{st} ({len(active)} pts ativos)", False, True
+        return st, False, False
+    # Check ribbing (alternating two stitch types)
+    if len(active) >= 4:
+        alt = all(active[i] != active[i+1] for i in range(len(active)-1))
+        if alt and len(set(active)) == 2:
+            s1, s2 = active[0], active[1]
+            n1 = st_names.get(s1, s1)
+            n2 = st_names.get(s2, s2)
+            if has_fora:
+                return f"*1{n1}, 1{n2}* ({len(active)} pts ativos)", True, True
+            return f"*1{n1}, 1{n2}*", True, True
+    # Mixed pattern
+    parts = []
+    cur = active[0]
+    cnt = 0
+    for c in active:
+        if c == cur:
+            cnt += 1
+        else:
+            parts.append(f"{cnt}{st_names.get(cur, cur)}")
+            cur = c
+            cnt = 1
+    if cnt:
+        parts.append(f"{cnt}{st_names.get(cur, cur)}")
+    desc = ", ".join(parts)
+    if has_fora:
+        desc += f" ({len(active)} pts ativos)"
+    return desc, False, has_fora
+
+
 def _generate_narrative_recipe(sections, garment_type, gauge_st, gauge_rows, is_circular, measurements):
-    """Generate a full narrative recipe text."""
+    """Generate a full narrative recipe text with row-by-row instructions."""
     gauge_text = f"{gauge_st} pts × {gauge_rows} carr = 10 cm"
     needle = _needle_recommendation(gauge_st)
 
@@ -198,31 +244,6 @@ def _generate_narrative_recipe(sections, garment_type, gauge_st, gauge_rows, is_
 
         incs = sec.get("increases", [])
         decs = sec.get("decreases", [])
-
-        chosen_pid = sec.get("chosen_pattern", None)
-        pattern_name = None
-        if chosen_pid and chosen_pid in STITCH_LIBRARY:
-            pattern_name = STITCH_LIBRARY[chosen_pid]["name"]
-        if not pattern_name:
-            detected = _detect_pattern(grid)
-            if detected and detected in STITCH_LIBRARY:
-                pattern_name = STITCH_LIBRARY[detected]["name"]
-
-        first_row_sts = sum(1 for c in grid[0] if c != '_')
-        last_row_sts = sum(1 for c in grid[-1] if c != '_')
-        row_counts = _count_active(grid)
-
-        sec_lines = []
-        sec_lines.append(f"\n  {label}:")
-        sec_lines.append(f"  Montar {first_row_sts} pontos.")
-        sec_lines.append(f"  Total: {h} carreiras.")
-
-        if is_circular and name == "body":
-            sec_lines.append("  Unir em redondo sem torcer. Colocar marcador de início de carreira.")
-
-        pattern_text = pattern_name or "gráfico personalizado"
-        sec_lines.append(f"  Carreira 1 a {h}: Seguir o {pattern_text}.")
-
         inc_by_row = {}
         for inc in incs:
             r = inc.get("r", 0)
@@ -234,39 +255,88 @@ def _generate_narrative_recipe(sections, garment_type, gauge_st, gauge_rows, is_
             dec_by_row.setdefault(r + 1, 0)
             dec_by_row[r + 1] += 1
 
-        # Auto-detect changes from shape mask (row-to-row width change)
-        auto_changes = {}
-        for r in range(1, len(row_counts)):
-            prev = row_counts[r - 1][1]
-            curr = row_counts[r][1]
-            diff = curr - prev
-            if diff > 0:
-                auto_changes[r + 1] = f"Aumentar {diff} pontos"
-            elif diff < 0:
-                auto_changes[r + 1] = f"Diminuir {abs(diff)} pontos"
+        # Row 0 in grid = top = last carreira
+        # Row h-1 in grid = bottom = carreira 1
+        # Analyze from bottom (carreira 1) to top
+        first_active = sum(1 for c in grid[-1] if c != '_')
 
-        # Merge manual inc/dec with auto-detected changes
-        shown_rows = sorted(set(
-            list(inc_by_row.keys()) +
-            list(dec_by_row.keys()) +
-            list(auto_changes.keys())
-        ))
-        for row_num in shown_rows:
+        sec_lines = []
+        sec_lines.append(f"\n  {label}:")
+        sec_lines.append(f"  Montar {first_active} pontos.")
+        if is_circular and name == "body":
+            sec_lines.append("  Unir em redondo sem torcer. Colocar marcador de início de carreira.")
+
+        # Segment the grid: go from bottom to top (carreira 1 to carreira h)
+        segments = []
+        seg_start = 0
+        seg_pattern = None
+        seg_is_rib = False
+        seg_has_fora = False
+        for i in range(h):
+            ri = h - 1 - i  # reverse index: h-1 is bottom (carreira 1), 0 is top
+            pat, is_rib, has_fora = _describe_row(grid[ri])
+            if pat != seg_pattern or is_rib != seg_is_rib or (has_fora != seg_has_fora and has_fora):
+                if seg_pattern is not None:
+                    segments.append((seg_start, i - 1, seg_pattern, seg_is_rib))
+                seg_start = i
+                seg_pattern = pat
+                seg_is_rib = is_rib
+                seg_has_fora = has_fora
+        if seg_pattern is not None:
+            segments.append((seg_start, h - 1, seg_pattern, seg_is_rib))
+
+        # Find neckline start (first row from top where _ appears)
+        neck_row = None
+        for i in range(h):
+            if any(c == '_' for c in grid[i]):
+                neck_row = h - i  # carreira number (1-indexed from bottom)
+                break
+
+        inc_rows_processed = set()
+        dec_rows_processed = set()
+
+        for start, end, pat, is_rib in segments:
+            carr_start = start + 1
+            carr_end = end + 1
+            cri = h - 1 - start  # grid row index for this segment start
+            active_cnt = sum(1 for c in grid[cri] if c != '_')
+
+            if carr_start == carr_end:
+                line = f"  Carreira {carr_start}: {pat} ({active_cnt} pts)"
+            else:
+                line = f"  Carreira {carr_start}-{carr_end}: {pat} ({active_cnt} pts)"
+
+            if neck_row and carr_start <= neck_row <= carr_end:
+                line += " — início do decote"
+
+            sec_lines.append(line)
+
+            # Add any manual inc/dec for rows in this segment
+            for rn in range(carr_start, carr_end + 1):
+                parts = []
+                if rn in inc_by_row and rn not in inc_rows_processed:
+                    inc_rows_processed.add(rn)
+                    parts.append(f"Aumentar {inc_by_row[rn]} ponto(s)")
+                if rn in dec_by_row and rn not in dec_rows_processed:
+                    dec_rows_processed.add(rn)
+                    parts.append(f"Diminuir {dec_by_row[rn]} ponto(s) (2pM)")
+                if parts:
+                    sec_lines.append(f"    -> Carreira {rn}: {'; '.join(parts)}")
+
+        # Any remaining inc/dec not in segments
+        for rn in sorted(set(list(inc_by_row.keys()) + list(dec_by_row.keys()))):
             parts = []
-            if row_num in inc_by_row:
-                parts.append(f"Aumentar {inc_by_row[row_num]} ponto(s) (1M no início e 1M no fim)")
-            if row_num in dec_by_row:
-                parts.append(f"Diminuir {dec_by_row[row_num]} ponto(s) (2pM)")
-            if row_num in auto_changes and row_num not in inc_by_row and row_num not in dec_by_row:
-                parts.append(auto_changes[row_num])
+            if rn in inc_by_row and rn not in inc_rows_processed:
+                parts.append(f"Aumentar {inc_by_row[rn]} ponto(s)")
+            if rn in dec_by_row and rn not in dec_rows_processed:
+                parts.append(f"Diminuir {dec_by_row[rn]} ponto(s) (2pM)")
             if parts:
-                sec_lines.append(f"  Carreira {row_num}: {'; '.join(parts)}.")
+                sec_lines.append(f"  Carreira {rn}: {'; '.join(parts)}")
 
-        total_auto_inc = sum(1 for k, v in auto_changes.items() if 'Aumentar' in v)
-        total_auto_dec = sum(1 for k, v in auto_changes.items() if 'Diminuir' in v)
-        sec_lines.append(f"  Resumo: {h} carreiras | {first_row_sts} pts montar → {last_row_sts} pts rematar | {total_auto_inc + len(incs)} aumentos, {total_auto_dec + len(decs)} diminuições.")
+        last_active = sum(1 for c in grid[0] if c != '_')
+        sec_lines.append(f"  Rematar os {last_active} pontos.")
 
-        total_sts = max(total_sts, last_row_sts)
+        total_sts = max(total_sts, first_active)
         total_rows += h
         section_texts.extend(sec_lines)
 
@@ -298,7 +368,7 @@ def _generate_narrative_recipe(sections, garment_type, gauge_st, gauge_rows, is_
             lines.append(" 4. Levantar pontos na orla frontal para a carcela de botões.")
             lines.append(" 5. Rematar todos os fios soltos.")
 
-    if chest_cm and total_stitches > 0:
+    if chest_cm and total_sts > 0:
         yarn = _yarn_estimate(total_sts, total_rows, gauge_st, gauge_rows, garment_type)
         lines = [line.replace("~[calcular]", f"~{yarn}") for line in lines]
 
@@ -363,9 +433,9 @@ def _generate_template_sections(garment_type, gauge_st, gauge_rows, measurements
         lines.append(f"  Manga — {sleeve_rows} carreiras, {sleeve_st} pts no final.")
 
     elif garment_type == "pants":
-        half_waist_st = _calc_stitches(half_chest, gauge_st)
+        half_waist_st = _calc_stitches(chest_cm, gauge_st)
         leg_length_rows = _calc_rows(length_cm, gauge_rows)
-        ankle_st = _calc_stitches(round(half_chest * 0.5), gauge_st)
+        ankle_st = _calc_stitches(round(chest_cm * 0.5), gauge_st)
 
         lines.append(f"\n  Frente (×1):")
         lines.append(f"  Montar {half_waist_st} pontos.")
@@ -415,19 +485,35 @@ def generate_recipe(sections, garment_type, gauge_st, gauge_rows, is_circular=Fa
             continue
 
         row_counts = [sum(1 for cell in row if cell != '_') for row in grid]
-        first_row = row_counts[0] if row_counts else 0
-        max_row = max(row_counts) if row_counts else first_row
-        last_count = row_counts[-1] if row_counts else first_row
+        bottom_count = row_counts[-1] if row_counts else 0
+        max_row = max(row_counts) if row_counts else bottom_count
+        top_count = row_counts[0] if row_counts else bottom_count
         h = len(grid)
 
         lines = []
         lines.append(f"--- {label} ---")
-        lines.append(f"Montar {first_row} pontos em agulhas {needle}.")
+        lines.append(f"Montar {bottom_count} pontos em agulhas {needle}.")
         if is_circular:
             lines.append("Tricotar em redondo.")
 
-        pattern_text = pattern_name or "gráfico personalizado"
-        lines.append(f"Carreira 1 a {h}: Seguir o {pattern_text}.")
+        # Segment the grid (bottom to top)
+        segs = []
+        ss = 0
+        sp = None
+        sr = False
+        sh = False
+        for i in range(h):
+            ri = h - 1 - i
+            pat, is_rib, has_fora = _describe_row(grid[ri])
+            if pat != sp or is_rib != sr or (has_fora != sh and has_fora):
+                if sp is not None:
+                    segs.append((ss, i - 1, sp, sr))
+                ss = i
+                sp = pat
+                sr = is_rib
+                sh = has_fora
+        if sp is not None:
+            segs.append((ss, h - 1, sp, sr))
 
         inc_by_row = {}
         for inc in incs:
@@ -440,30 +526,37 @@ def generate_recipe(sections, garment_type, gauge_st, gauge_rows, is_circular=Fa
             dec_by_row.setdefault(r + 1, 0)
             dec_by_row[r + 1] += 1
 
-        changes = {}
-        for r in range(1, len(row_counts)):
-            prev = row_counts[r - 1]
-            curr = row_counts[r]
-            diff = curr - prev
-            if diff > 0:
-                changes[r + 1] = f"Aumentar {diff} pontos (início/fim da carreira)"
-            elif diff < 0:
-                changes[r + 1] = f"Diminuir {abs(diff)} pontos (2pM no início/fim)"
+        inc_done = set()
+        dec_done = set()
 
-        for row_num in sorted(set(list(inc_by_row.keys()) + list(dec_by_row.keys()) + list(changes.keys()))):
-            if row_num in inc_by_row:
-                lines.append(f"Carreira {row_num}: Aumentar {inc_by_row[row_num]} ponto(s).")
-            if row_num in dec_by_row:
-                lines.append(f"Carreira {row_num}: Diminuir {dec_by_row[row_num]} ponto(s) (2pM).")
-            if row_num in changes and row_num not in inc_by_row and row_num not in dec_by_row:
-                lines.append(f"Carreira {row_num}: {changes[row_num]}.")
+        for start, end, pat, is_rib in segs:
+            cs = start + 1
+            ce = end + 1
+            cri = h - 1 - start
+            cnt = sum(1 for c in grid[cri] if c != '_')
+            if cs == ce:
+                lines.append(f"Carreira {cs}: {pat} ({cnt} pts)")
+            else:
+                lines.append(f"Carreira {cs}-{ce}: {pat} ({cnt} pts)")
+            for rn in range(cs, ce + 1):
+                if rn in inc_by_row and rn not in inc_done:
+                    inc_done.add(rn)
+                    lines.append(f"  -> Aumentar {inc_by_row[rn]} pt(s)")
+                if rn in dec_by_row and rn not in dec_done:
+                    lines.append(f"  -> Diminuir {dec_by_row[rn]} pt(s) (2pM)")
 
-        if last_count < first_row:
-            lines.append(f"Rematar os {last_count} pontos.")
-        elif last_count > first_row:
-            lines.append(f"Rematar com {last_count} pontos.")
+        for rn in sorted(set(list(inc_by_row.keys()) + list(dec_by_row.keys()))):
+            if rn in inc_by_row and rn not in inc_done:
+                lines.append(f"Carreira {rn}: Aumentar {inc_by_row[rn]} pt(s)")
+            if rn in dec_by_row and rn not in dec_done:
+                lines.append(f"Carreira {rn}: Diminuir {dec_by_row[rn]} pt(s) (2pM)")
+
+        if top_count < bottom_count:
+            lines.append(f"Rematar os {top_count} pontos.")
+        elif top_count > bottom_count:
+            lines.append(f"Rematar com {top_count} pontos.")
         else:
-            lines.append(f"Rematar todos os {last_count} pontos.")
+            lines.append(f"Rematar todos os {top_count} pontos.")
 
         total_sts += max_row
         total_rows += h
