@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd KnittingPatternMaker && npx expo export --platform web",
-  "outputDirectory": "KnittingPatternMaker/dist",
+  "buildCommand": "bash vercel-build.sh",
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
