@@ -1,1 +1,0 @@
-web: cd Backend && gunicorn app:app
