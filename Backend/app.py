@@ -464,11 +464,9 @@ def image_to_chart():
                 ph = pattern.get('repeat_h', len(chart))
                 for r in range(front_h):
                     for c in range(front_w):
-                        cv = chart[r % ph][c % pw]
                         if grid[r][c] == 'm':
+                            cv = chart[r % ph][c % pw]
                             grid[r][c] = 'm' if cv == 0 else 'l'
-                        else:
-                            grid[r][c] = 'l' if cv == 0 else 'm'
 
         def make_plain_grid(w, h):
             return [['m' for _ in range(w)] for _ in range(h)]

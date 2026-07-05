@@ -141,8 +141,11 @@ def process_image_to_pattern(input_path, num_colors=6, chart_width=40, chart_hei
     }
 
 
-def _denoise_grid(grid):
-    """Remove isolated l pixels (l surrounded by m) and isolated m pixels."""
+def _denoise_grid_preserve_pattern(grid):
+    """Remove only isolated noise pixels while preserving patterns.
+    A pixel is noise if it differs from ALL its 8 neighbors (isolated).
+    Also removes single-pixel 'holes' (a pixel surrounded by the same value).
+    """
     h = len(grid)
     w = len(grid[0])
     changed = True
@@ -151,13 +154,30 @@ def _denoise_grid(grid):
         for y in range(1, h - 1):
             for x in range(1, w - 1):
                 cell = grid[y][x]
-                n = [grid[y-1][x], grid[y+1][x], grid[y][x-1], grid[y][x+1]]
-                if cell == 'l' and sum(1 for c in n if c == 'm') >= 3:
-                    grid[y][x] = 'm'
+                if cell == '_':
+                    continue
+                # 8 neighbors
+                n = [
+                    grid[y-1][x-1], grid[y-1][x], grid[y-1][x+1],
+                    grid[y][x-1],                    grid[y][x+1],
+                    grid[y+1][x-1], grid[y+1][x], grid[y+1][x+1],
+                ]
+                # If this cell is different from ALL neighbors → noise
+                if all(c != cell for c in n):
+                    # Replace with the most common neighbor value
+                    from collections import Counter
+                    counts = Counter(n)
+                    most_common = counts.most_common(1)[0][0]
+                    grid[y][x] = most_common
                     changed = True
-                elif cell == 'l' and all(c != 'l' for c in n):
-                    grid[y][x] = 'm'
-                    changed = True
+        # Second pass: remove single-cell 'l' holes surrounded by 'm'
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                if grid[y][x] == 'l':
+                    n = [grid[y-1][x], grid[y+1][x], grid[y][x-1], grid[y][x+1]]
+                    if sum(1 for c in n if c == 'm') >= 4:
+                        grid[y][x] = 'm'
+                        changed = True
     return grid
 
 
@@ -224,7 +244,8 @@ def _detect_neckline(binary, height, width):
 
 def convert_image_to_stitch_grid(image_data, width, height, threshold=None):
     """Convert an image to a knit/purl grid with silhouette detection.
-    Light/body areas → m (meia), edges → l (liga), outside → _ (fora).
+    Body interior → m (meia), outline edges → l (liga), outside/neckline → _ (fora).
+    Caller can then apply a stitch pattern via stitch_library.
     """
     import cv2
     img = Image.open(BytesIO(image_data)).convert('L')
@@ -234,13 +255,13 @@ def convert_image_to_stitch_grid(image_data, width, height, threshold=None):
     # 1. Gaussian blur to reduce noise
     blurred = cv2.GaussianBlur(img_arr, (5, 5), 1)
 
-    # 2. Otsu adaptive threshold
+    # 2. Otsu adaptive threshold → binary
     if threshold is None:
         _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     else:
         _, binary = cv2.threshold(blurred, threshold, 255, cv2.THRESH_BINARY)
 
-    # 3. Morphological cleanup
+    # 3. Morphological cleanup → clean silhouette
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
     binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
@@ -251,6 +272,10 @@ def convert_image_to_stitch_grid(image_data, width, height, threshold=None):
     outline = cv2.subtract(binary, eroded)
 
     # 5. Build grid
+    #  - background → _
+    #  - neckline → _
+    #  - body interior → m (pattern applied later via stitch_library)
+    #  - outline border → l
     neck_cells = _detect_neckline(binary, height, width)
     grid = []
     for y in range(height):
@@ -267,6 +292,6 @@ def convert_image_to_stitch_grid(image_data, width, height, threshold=None):
         grid.append(row)
 
     # 6. Denoise
-    grid = _denoise_grid(grid)
+    grid = _denoise_grid_preserve_pattern(grid)
 
     return grid
