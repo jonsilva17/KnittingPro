@@ -194,6 +194,19 @@ export function getPreviewUrl(path) {
   return `${API_URL}${path}`;
 }
 
+export async function imageToChart(options) {
+  const res = await fetch(`${API_URL}/api/image-to-chart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro ao converter imagem' }));
+    throw new Error(err.error || 'Erro ao converter imagem');
+  }
+  return res.json();
+}
+
 export async function fetchStitchLibrary() {
   const res = await fetch(`${API_URL}/api/stitch-patterns`);
   if (!res.ok) throw new Error('Erro ao carregar biblioteca');

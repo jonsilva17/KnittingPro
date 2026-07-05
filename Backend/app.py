@@ -410,6 +410,75 @@ def health():
     return jsonify({"status": "ok"})
 
 
+SIZE_DIMS = {
+    "XS": {"chest": 41, "length": 54, "sleeve": 44},
+    "S": {"chest": 45, "length": 56, "sleeve": 46},
+    "M": {"chest": 49, "length": 58, "sleeve": 48},
+    "L": {"chest": 53, "length": 60, "sleeve": 50},
+    "XL": {"chest": 57, "length": 62, "sleeve": 52},
+    "2XL": {"chest": 61, "length": 64, "sleeve": 54},
+    "3XL": {"chest": 65, "length": 66, "sleeve": 56},
+    "4XL": {"chest": 69, "length": 68, "sleeve": 58},
+}
+
+
+@app.route('/api/image-to-chart', methods=['POST'])
+def image_to_chart():
+    try:
+        data = request.get_json()
+        if not data or 'image_base64' not in data:
+            return jsonify({"error": "Nenhuma imagem enviada"}), 400
+
+        image_data = base64.b64decode(data['image_base64'])
+        size_key = data.get('size_key', 'M')
+        pattern_key = data.get('pattern_key')
+        gauge_st = int(data.get('gauge_st', 22))
+        gauge_rows = int(data.get('gauge_rows', 30))
+
+        dims = SIZE_DIMS.get(size_key, SIZE_DIMS['M'])
+        front_w = round(dims['chest'] * gauge_st / 10)
+        front_h = round(dims['length'] * gauge_rows / 10)
+        sleeve_w = round(dims['sleeve'] * gauge_st / 10)
+        sleeve_h = round(front_h * 0.8)
+
+        grid = convert_image_to_stitch_grid(image_data, front_w, front_h)
+
+        if pattern_key:
+            from stitch_library import STITCH_LIBRARY
+            pattern = STITCH_LIBRARY.get(pattern_key)
+            if pattern and 'chart' in pattern:
+                chart = pattern['chart']
+                pw = pattern.get('repeat_w', len(chart[0]))
+                ph = pattern.get('repeat_h', len(chart))
+                for r in range(front_h):
+                    for c in range(front_w):
+                        cv = chart[r % ph][c % pw]
+                        if grid[r][c] == 'm':
+                            grid[r][c] = 'm' if cv == 0 else 'l'
+                        else:
+                            grid[r][c] = 'l' if cv == 0 else 'm'
+
+        def make_plain_grid(w, h):
+            return [['m' for _ in range(w)] for _ in range(h)]
+
+        sections = [
+            {"name": "front", "grid": grid, "width": front_w, "height": front_h, "increases": [], "decreases": []},
+            {"name": "back", "grid": make_plain_grid(front_w, front_h), "width": front_w, "height": front_h, "increases": [], "decreases": []},
+            {"name": "sleeve", "grid": make_plain_grid(sleeve_w, sleeve_h), "width": sleeve_w, "height": sleeve_h, "increases": [], "decreases": []},
+        ]
+
+        return jsonify({
+            "sections": sections,
+            "width": front_w,
+            "height": front_h,
+            "size_key": size_key,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/colorwork-editor-pdf', methods=['POST'])
 def colorwork_editor_pdf():
     try:

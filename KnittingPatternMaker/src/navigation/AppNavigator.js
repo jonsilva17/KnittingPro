@@ -10,6 +10,7 @@ import ToyScreen from '../screens/ToyScreen';
 import StitchBlanketScreen from '../screens/StitchBlanketScreen';
 import StitchEditorScreen from '../screens/StitchEditorScreen';
 import ColorworkEditorScreen from '../screens/ColorworkEditorScreen';
+import ImageToChartScreen from '../screens/ImageToChartScreen';
 
 const Stack = createStackNavigator();
 
@@ -67,6 +68,12 @@ function AppNavigatorInner() {
           options={{ title: t.colorworkEditor }}
         >
           {props => <ColorworkEditorScreen {...props} />}
+        </Stack.Screen>
+        <Stack.Screen
+          name="ImageToChart"
+          options={{ title: t.imageToChartTitle }}
+        >
+          {props => <ImageToChartScreen {...props} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
