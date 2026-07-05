@@ -631,7 +631,11 @@ export default function StitchEditorScreen({ navigation, route }) {
     if (loadingRef.current) return;
     if (route.params?.initialSections) {
       setSections(route.params.initialSections.map(s => ({
-        ...s,
+        key: s.name || s.key,
+        label: s.label || (s.name === 'front' ? t.front : s.name === 'back' ? t.back : s.name === 'sleeve' ? t.sleeve : s.name),
+        grid: s.grid,
+        width: String(s.width || 20),
+        height: String(s.height || 20),
         increases: s.increases || [],
         decreases: s.decreases || [],
       })));
