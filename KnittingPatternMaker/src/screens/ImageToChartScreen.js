@@ -43,13 +43,21 @@ export default function ImageToChartScreen({ navigation }) {
       quality: 0.7,
       maxWidth: 800,
       maxHeight: 800,
+      base64: true,
     });
     if (!result.canceled && result.assets?.length > 0) {
-      setImageUri(result.assets[0].uri);
-      try {
-        const b64 = await uriToBase64(result.assets[0].uri);
-        setImageBase64(b64);
-      } catch {}
+      const asset = result.assets[0];
+      setImageUri(asset.uri);
+      if (asset.base64) {
+        setImageBase64(asset.base64);
+      } else {
+        try {
+          const b64 = await uriToBase64(asset.uri);
+          setImageBase64(b64);
+        } catch (e) {
+          Alert.alert('Erro', 'Não foi possível ler a imagem: ' + e.message);
+        }
+      }
     }
   };
 

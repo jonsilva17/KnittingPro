@@ -6,13 +6,6 @@ from io import BytesIO
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
-from pattern_maker import process_image_to_pattern, convert_image_to_stitch_grid
-from pdf_generator import generate_pattern_pdf, generate_sweater_pdf, generate_stitch_blanket_pdf, generate_toy_pdf, generate_stitch_editor_pdf, generate_stitch_preview, generate_colorwork_editor_pdf
-from sweater_pattern import generate_sweater_pattern
-from stitch_patterns import generate_stitch_blanket, STITCH_PATTERNS, PATTERN_KEYS
-from stitch_library import get_all_patterns, save_custom_pattern, delete_custom_pattern, CATEGORIES, load_custom_patterns
-from recipe_generator import generate_recipe
-from ai_chart import generate_grid
 
 load_dotenv()
 
@@ -33,6 +26,8 @@ def index():
 
 @app.route('/api/convert', methods=['POST'])
 def convert_image():
+    from pattern_maker import process_image_to_pattern
+    from pdf_generator import generate_pattern_pdf
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -96,6 +91,7 @@ def preview_image(image_name):
 
 @app.route('/api/stitch-editor-autofill', methods=['POST'])
 def stitch_editor_autofill():
+    from pattern_maker import convert_image_to_stitch_grid
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -116,6 +112,9 @@ def stitch_editor_autofill():
 
 @app.route('/api/sweater-pattern', methods=['POST'])
 def sweater_pattern():
+    from pattern_maker import process_image_to_pattern
+    from sweater_pattern import generate_sweater_pattern
+    from pdf_generator import generate_sweater_pdf
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -166,6 +165,8 @@ def sweater_pattern():
 
 @app.route('/api/stitch-blanket', methods=['POST'])
 def stitch_blanket():
+    from stitch_patterns import generate_stitch_blanket
+    from pdf_generator import generate_stitch_blanket_pdf
     try:
         data = request.get_json()
         if not data:
@@ -196,6 +197,8 @@ def stitch_blanket():
 
 @app.route('/api/toy-pattern', methods=['POST'])
 def toy_pattern():
+    from pattern_maker import process_image_to_pattern
+    from pdf_generator import generate_toy_pdf
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -251,6 +254,7 @@ def toy_pattern():
 
 @app.route('/api/stitch-patterns')
 def list_stitch_patterns():
+    from stitch_library import get_all_patterns, CATEGORIES
     patterns = get_all_patterns()
     result = {}
     for key, p in patterns.items():
@@ -273,6 +277,7 @@ def list_stitch_patterns():
 
 @app.route('/api/stitch-patterns/custom', methods=['POST'])
 def add_custom_pattern():
+    from stitch_library import save_custom_pattern
     try:
         data = request.get_json()
         if not data or 'chart' not in data or 'name' not in data:
@@ -298,6 +303,7 @@ def add_custom_pattern():
 
 @app.route('/api/stitch-patterns/custom/<pid>', methods=['DELETE'])
 def remove_custom_pattern(pid):
+    from stitch_library import delete_custom_pattern
     if delete_custom_pattern(pid):
         return jsonify({"ok": True})
     return jsonify({"error": "Padrão não encontrado"}), 404
@@ -305,6 +311,8 @@ def remove_custom_pattern(pid):
 
 @app.route('/api/stitch-editor-pdf', methods=['POST'])
 def stitch_editor_pdf():
+    from recipe_generator import generate_recipe
+    from pdf_generator import generate_stitch_editor_pdf
     try:
         data = request.get_json()
         if not data or 'sections' not in data:
@@ -354,6 +362,7 @@ def stitch_editor_pdf():
 
 @app.route('/api/stitch-editor-preview', methods=['POST'])
 def stitch_editor_preview():
+    from pdf_generator import generate_stitch_preview
     try:
         data = request.get_json()
         if not data or 'grid' not in data:
@@ -375,6 +384,7 @@ def stitch_editor_preview():
 
 @app.route('/api/stitch-editor-recipe', methods=['POST'])
 def stitch_editor_recipe():
+    from recipe_generator import generate_recipe
     try:
         data = request.get_json()
         if not data or 'sections' not in data:
@@ -425,6 +435,7 @@ SIZE_DIMS = {
 
 @app.route('/api/image-to-chart', methods=['POST'])
 def image_to_chart():
+    from pattern_maker import convert_image_to_stitch_grid
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -482,6 +493,7 @@ def image_to_chart():
 
 @app.route('/api/image-to-chart-ai', methods=['POST'])
 def image_to_chart_ai():
+    from ai_chart import generate_grid
     try:
         data = request.get_json()
         if not data or 'image_base64' not in data:
@@ -533,6 +545,7 @@ def image_to_chart_ai():
 
 @app.route('/api/colorwork-editor-pdf', methods=['POST'])
 def colorwork_editor_pdf():
+    from pdf_generator import generate_colorwork_editor_pdf
     try:
         data = request.get_json()
         if not data or 'sections' not in data:
