@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLang } from '../lang';
-import { imageToChart, uriToBase64, createStitchEditorPattern, getPdfUrl } from '../services/ApiService';
+import { imageToChart, imageToChartAI, uriToBase64 } from '../services/ApiService';
 import PatternPicker from '../components/PatternPicker';
 import * as ImagePicker from 'expo-image-picker';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-
-const CELL_SIZE = 6;
+const AI_PROVIDERS = [
+  { key: 'openai', label: 'OpenAI GPT-4o', color: '#10A37F' },
+  { key: 'gemini', label: 'Google Gemini', color: '#4285F4' },
+  { key: 'grok', label: 'xAI Grok', color: '#333333' },
+];
 
 export default function ImageToChartScreen({ navigation }) {
   const { t } = useLang();
@@ -26,10 +29,10 @@ export default function ImageToChartScreen({ navigation }) {
   const [patternName, setPatternName] = useState(null);
   const [imageUri, setImageUri] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
-  const [sections, setSections] = useState(null);
   const [loading, setLoading] = useState(false);
   const [patternPicker, setPatternPicker] = useState(false);
-  const [needsPdfConfirm, setNeedsPdfConfirm] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
+  const [aiProvider, setAiProvider] = useState('openai');
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,54 +55,27 @@ export default function ImageToChartScreen({ navigation }) {
     }
   };
 
-  const handleAutoFill = async () => {
+  const handleConvert = async () => {
     if (!imageBase64) {
       Alert.alert(t.errorGeneric, t.imageToChartNoImage);
       return;
     }
     setLoading(true);
     try {
-      const result = await imageToChart({
+      const options = {
         image_base64: imageBase64,
         size_key: size,
         pattern_key: patternKey,
         gauge_st: 22,
         gauge_rows: 30,
-      });
-      setSections(result.sections);
-      setNeedsPdfConfirm(true);
-      const msg = t.imageToChartSuccess.replace('{w}', String(result.width)).replace('{h}', String(result.height));
-      Alert.alert('', msg);
-    } catch (e) {
-      Alert.alert(t.imageToChartError, e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGeneratePdf = async () => {
-    if (!sections) {
-      handleAutoFill();
-      return;
-    }
-    setLoading(true);
-    try {
-      const payload = {
-        sections,
-        garment_type: 'sweater',
-        is_circular: false,
-        gauge_stitches: 22,
-        gauge_rows: 30,
-        image_base64: imageBase64 || null,
-        project_name: t.imageToChartTitle + ' - ' + size,
-        recipe_text: null,
-        needle: null,
-        lang: 'pt',
       };
-      const result = await createStitchEditorPattern(payload);
-      navigation.replace('Preview', { result, isStitchEditor: true });
+      const result = aiMode
+        ? await imageToChartAI({ ...options, provider: aiProvider })
+        : await imageToChart(options);
+
+      navigation.navigate('StitchEditor', { initialSections: result.sections });
     } catch (e) {
-      Alert.alert(t.errorPdf, e.message);
+      Alert.alert(t.imageToChartError, e.message || (aiMode ? 'Verifica se a chave de API está configurada no servidor' : ''));
     } finally {
       setLoading(false);
     }
@@ -111,46 +87,48 @@ export default function ImageToChartScreen({ navigation }) {
     setPatternPicker(false);
   }, []);
 
-  const activeGrid = sections?.[0]?.grid || null;
-
-  const renderMiniChart = () => {
-    if (!activeGrid) return null;
-    const h = activeGrid.length;
-    const w = activeGrid[0]?.length || 0;
-    if (w === 0 || h === 0) return null;
-    const maxPreview = 100;
-    const ratio = Math.min(maxPreview / w, maxPreview / h, 1);
-    const cw = Math.max(2, Math.round(CELL_SIZE * ratio));
-    const ch = cw;
-    return (
-      <View style={styles.miniChartContainer}>
-        <Text style={styles.miniChartLabel}>{t.imageToChartPreview}</Text>
-        <View style={{ width: w * cw, height: h * ch, borderWidth: 1, borderColor: '#ccc' }}>
-          {activeGrid.map((row, ri) => (
-            <View key={ri} style={{ flexDirection: 'row' }}>
-              {row.map((cell, ci) => (
-                <View
-                  key={ci}
-                  style={{
-                    width: cw,
-                    height: ch,
-                    backgroundColor: cell === 'm' ? '#FFFFFF' : '#333333',
-                    borderWidth: 0.3,
-                    borderColor: '#ddd',
-                  }}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
-        <Text style={styles.miniChartDims}>{w}×{h} pts</Text>
-      </View>
-    );
-  };
-
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t.imageToChartTitle}</Text>
+
+      <View style={styles.aiToggleRow}>
+        <TouchableOpacity
+          style={[styles.aiToggleBtn, !aiMode && styles.aiToggleActive]}
+          onPress={() => setAiMode(false)}
+        >
+          <Text style={[styles.aiToggleText, !aiMode && styles.aiToggleTextActive]}>
+            {t.imageToChartSimple || 'Simples'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.aiToggleBtn, aiMode && styles.aiToggleActive]}
+          onPress={() => setAiMode(true)}
+        >
+          <Text style={[styles.aiToggleText, aiMode && styles.aiToggleTextActive]}>AI</Text>
+        </TouchableOpacity>
+      </View>
+
+      {aiMode && (
+        <View style={styles.providerRow}>
+          {AI_PROVIDERS.map(p => (
+            <TouchableOpacity
+              key={p.key}
+              style={[styles.providerBtn, aiProvider === p.key && { backgroundColor: p.color }]}
+              onPress={() => setAiProvider(p.key)}
+            >
+              <Text style={[styles.providerText, aiProvider === p.key && styles.providerTextActive]}>
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {aiMode && (
+        <Text style={styles.aiNote}>
+          {t.imageToChartAiNote || 'Requer chave de API configurada no servidor (OPENAI_API_KEY, GEMINI_API_KEY ou GROK_API_KEY)'}
+        </Text>
+      )}
 
       <Text style={styles.sectionTitle}>{t.imageToChartSize}</Text>
       <View style={styles.sizeRow}>
@@ -158,7 +136,7 @@ export default function ImageToChartScreen({ navigation }) {
           <TouchableOpacity
             key={s}
             style={[styles.sizeBtn, size === s && styles.sizeBtnActive]}
-            onPress={() => { setSize(s); setSections(null); setNeedsPdfConfirm(false); }}
+            onPress={() => setSize(s)}
           >
             <Text style={[styles.sizeBtnText, size === s && styles.sizeBtnTextActive]}>{s}</Text>
           </TouchableOpacity>
@@ -190,26 +168,22 @@ export default function ImageToChartScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.actionBtn, { backgroundColor: '#4A8B6F' }]}
-        onPress={handleAutoFill}
+        style={[styles.actionBtn, { backgroundColor: aiMode ? '#B565A7' : '#4A8B6F' }]}
+        onPress={handleConvert}
         disabled={loading || !imageBase64}
       >
         {loading ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.actionBtnText}>{t.imageToChartAutoFill}</Text>
+          <Text style={styles.actionBtnText}>
+            {aiMode ? '🤖 AI ' + (t.imageToChartAutoFill || 'Converter') : t.imageToChartAutoFill}
+          </Text>
         )}
       </TouchableOpacity>
 
-      {renderMiniChart()}
-
-      <TouchableOpacity
-        style={[styles.actionBtn, { backgroundColor: '#1A237E', marginTop: 8 }]}
-        onPress={handleGeneratePdf}
-        disabled={loading}
-      >
-        <Text style={styles.actionBtnText}>{t.imageToChartPdf}</Text>
-      </TouchableOpacity>
+      <Text style={styles.editHint}>
+        {t.imageToChartEditHint || 'Depois de converter, podes editar o gráfico antes de gerar o PDF'}
+      </Text>
 
       <View style={{ height: 40 }} />
 
@@ -237,6 +211,57 @@ const styles = StyleSheet.create({
     color: '#6B4F8A',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  aiToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#E8DEF0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  aiToggleBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+  },
+  aiToggleActive: {
+    backgroundColor: '#6B4F8A',
+  },
+  aiToggleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B4F8A',
+  },
+  aiToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  providerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  providerBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#E8DEF0',
+    margin: 2,
+  },
+  providerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B4F8A',
+  },
+  providerTextActive: {
+    color: '#FFFFFF',
+  },
+  aiNote: {
+    fontSize: 11,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 10,
   },
   sectionTitle: {
     fontSize: 14,
@@ -331,19 +356,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  miniChartContainer: {
-    marginTop: 16,
-    alignItems: 'center',
-    width: '100%',
-  },
-  miniChartLabel: {
+  editHint: {
     fontSize: 12,
-    color: '#888',
-    marginBottom: 6,
-  },
-  miniChartDims: {
-    fontSize: 11,
-    color: '#aaa',
-    marginTop: 4,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 20,
   },
 });

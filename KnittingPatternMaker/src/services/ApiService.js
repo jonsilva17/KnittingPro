@@ -194,6 +194,19 @@ export function getPreviewUrl(path) {
   return `${API_URL}${path}`;
 }
 
+export async function imageToChartAI(options) {
+  const res = await fetch(`${API_URL}/api/image-to-chart-ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro AI' }));
+    throw new Error(err.error || 'Erro AI ao converter imagem');
+  }
+  return res.json();
+}
+
 export async function imageToChart(options) {
   const res = await fetch(`${API_URL}/api/image-to-chart`, {
     method: 'POST',

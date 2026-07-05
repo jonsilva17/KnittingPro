@@ -455,7 +455,7 @@ const GridRow = React.memo(({ row, ri, cellSize, mode, isSelected, hasInc, hasDe
   return true;
 });
 
-export default function StitchEditorScreen({ navigation }) {
+export default function StitchEditorScreen({ navigation, route }) {
   const { t } = useLang();
   const [garmentType, setGarmentType] = useState('sweater');
   const [sections, setSections] = useState([]);
@@ -629,6 +629,15 @@ export default function StitchEditorScreen({ navigation }) {
 
   useEffect(() => {
     if (loadingRef.current) return;
+    if (route.params?.initialSections) {
+      setSections(route.params.initialSections.map(s => ({
+        ...s,
+        increases: s.increases || [],
+        decreases: s.decreases || [],
+      })));
+      setActiveIndex(0);
+      return;
+    }
     const isCirc = isCircular && CIRCULAR_DEFS[garmentType];
     const defs = isCirc ? CIRCULAR_DEFS[garmentType] : SECTION_DEFS[garmentType];
     setSections(defs.map(d => ({

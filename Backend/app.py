@@ -12,6 +12,7 @@ from sweater_pattern import generate_sweater_pattern
 from stitch_patterns import generate_stitch_blanket, STITCH_PATTERNS, PATTERN_KEYS
 from stitch_library import get_all_patterns, save_custom_pattern, delete_custom_pattern, CATEGORIES, load_custom_patterns
 from recipe_generator import generate_recipe
+from ai_chart import generate_grid, PROVIDERS as AI_PROVIDERS
 
 load_dotenv()
 
@@ -472,6 +473,57 @@ def image_to_chart():
             "width": front_w,
             "height": front_h,
             "size_key": size_key,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/image-to-chart-ai', methods=['POST'])
+def image_to_chart_ai():
+    try:
+        data = request.get_json()
+        if not data or 'image_base64' not in data:
+            return jsonify({"error": "Nenhuma imagem enviada"}), 400
+
+        image_data = base64.b64decode(data['image_base64'])
+        size_key = data.get('size_key', 'M')
+        provider = data.get('provider', 'openai')
+        pattern_key = data.get('pattern_key')
+        gauge_st = int(data.get('gauge_st', 22))
+        gauge_rows = int(data.get('gauge_rows', 30))
+
+        dims = SIZE_DIMS.get(size_key, SIZE_DIMS['M'])
+        front_w = round(dims['chest'] * gauge_st / 10)
+        front_h = round(dims['length'] * gauge_rows / 10)
+        sleeve_w = round(dims['sleeve'] * gauge_st / 10)
+        sleeve_h = round(front_h * 0.8)
+
+        pattern_name = None
+        if pattern_key:
+            from stitch_library import STITCH_LIBRARY
+            p = STITCH_LIBRARY.get(pattern_key)
+            if p:
+                pattern_name = p.get('name', pattern_key)
+
+        grid = generate_grid(image_data, front_w, front_h, provider, pattern_name)
+
+        def make_plain_grid(w, h):
+            return [['m' for _ in range(w)] for _ in range(h)]
+
+        sections = [
+            {"name": "front", "grid": grid, "width": front_w, "height": front_h, "increases": [], "decreases": []},
+            {"name": "back", "grid": make_plain_grid(front_w, front_h), "width": front_w, "height": front_h, "increases": [], "decreases": []},
+            {"name": "sleeve", "grid": make_plain_grid(sleeve_w, sleeve_h), "width": sleeve_w, "height": sleeve_h, "increases": [], "decreases": []},
+        ]
+
+        return jsonify({
+            "sections": sections,
+            "width": front_w,
+            "height": front_h,
+            "size_key": size_key,
+            "provider": provider,
         })
 
     except Exception as e:
