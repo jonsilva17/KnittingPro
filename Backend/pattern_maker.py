@@ -141,15 +141,132 @@ def process_image_to_pattern(input_path, num_colors=6, chart_width=40, chart_hei
     }
 
 
-def convert_image_to_stitch_grid(image_data, width, height, threshold=128):
-    """Convert an image to a binary knit/purl grid (m=light, l=dark)."""
+def _denoise_grid(grid):
+    """Remove isolated l pixels (l surrounded by m) and isolated m pixels."""
+    h = len(grid)
+    w = len(grid[0])
+    changed = True
+    while changed:
+        changed = False
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                cell = grid[y][x]
+                n = [grid[y-1][x], grid[y+1][x], grid[y][x-1], grid[y][x+1]]
+                if cell == 'l' and sum(1 for c in n if c == 'm') >= 3:
+                    grid[y][x] = 'm'
+                    changed = True
+                elif cell == 'l' and all(c != 'l' for c in n):
+                    grid[y][x] = 'm'
+                    changed = True
+    return grid
+
+
+def _detect_neckline(binary, height, width):
+    """Detect neckline/shoulder area from binary silhouette.
+    Returns set of (row, col) to mark as _.
+    """
+    neck = set()
+    if height < 10:
+        return neck
+    # Find leftmost and rightmost white pixel per row
+    lefts = np.full(height, -1, dtype=int)
+    rights = np.full(height, -1, dtype=int)
+    for y in range(height):
+        white = np.where(binary[y] > 0)[0]
+        if len(white) > 0:
+            lefts[y] = white[0]
+            rights[y] = white[-1]
+    widths = np.where(lefts >= 0, rights - lefts, 0)
+    max_w = widths.max()
+    if max_w == 0:
+        return neck
+
+    # Find the first body row (where width >= 50% of max)
+    body_start = None
+    for y in range(height):
+        if widths[y] >= max_w * 0.5:
+            body_start = y
+            break
+    if body_start is None:
+        return neck
+
+    # Shoulder row: where width drops below 75% of max (scanning upward from body_start)
+    shoulder_row = None
+    for y in range(body_start, min(height, body_start + max(8, height // 6))):
+        if widths[y] < max_w * 0.75:
+            shoulder_row = y
+            break
+    if shoulder_row is None:
+        return neck
+
+    # Neck area: from top of body to shoulder row, center portion
+    neck_end = min(shoulder_row + max(4, height // 12), height)
+    for y in range(body_start, neck_end):
+        if lefts[y] >= 0 and rights[y] >= 0:
+            sw = rights[y] - lefts[y]
+            neck_st = max(4, int(sw * 0.35))
+            center = (lefts[y] + rights[y]) // 2
+            ns = center - neck_st // 2
+            ne = center + neck_st // 2
+            for x in range(max(0, ns), min(width, ne + 1)):
+                neck.add((y, x))
+        else:
+            for x in range(width):
+                neck.add((y, x))
+
+    # Also mark rows above body (if there's gap at top) as neck
+    for y in range(0, max(0, body_start - 2)):
+        for x in range(width):
+            neck.add((y, x))
+
+    return neck
+
+
+def convert_image_to_stitch_grid(image_data, width, height, threshold=None):
+    """Convert an image to a knit/purl grid with silhouette detection.
+    Light/body areas → m (meia), edges → l (liga), outside → _ (fora).
+    """
+    import cv2
     img = Image.open(BytesIO(image_data)).convert('L')
     img_resized = img.resize((width, height), Image.LANCZOS)
-    pixels = np.array(img_resized)
+    img_arr = np.array(img_resized, dtype=np.uint8)
+
+    # 1. Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(img_arr, (5, 5), 1)
+
+    # 2. Otsu adaptive threshold
+    if threshold is None:
+        _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    else:
+        _, binary = cv2.threshold(blurred, threshold, 255, cv2.THRESH_BINARY)
+
+    # 3. Morphological cleanup
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
+    # 4. Silhouette outline: body interior = m, border = l
+    kernel_small = np.ones((3, 3), np.uint8)
+    eroded = cv2.erode(binary, kernel_small, iterations=1)
+    outline = cv2.subtract(binary, eroded)
+
+    # 5. Build grid
+    neck_cells = _detect_neckline(binary, height, width)
     grid = []
     for y in range(height):
         row = []
         for x in range(width):
-            row.append('m' if pixels[y][x] >= threshold else 'l')
+            if binary[y][x] == 0:
+                row.append('_')
+            elif (y, x) in neck_cells:
+                row.append('_')
+            elif outline[y][x] > 0:
+                row.append('l')
+            else:
+                row.append('m')
         grid.append(row)
+
+    # 6. Denoise
+    grid = _denoise_grid(grid)
+
     return grid
