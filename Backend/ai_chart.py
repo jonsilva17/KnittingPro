@@ -2,10 +2,12 @@ import os
 import json
 import requests
 import base64
+import traceback
 from io import BytesIO
 from PIL import Image
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 
 
 def _resize_image(image_data, max_size=800):
@@ -78,38 +80,55 @@ def generate_with_openai(image_data, width, height, pattern_name=None):
 
     img_b64 = base64.b64encode(image_data).decode("utf-8")
     prompt = _build_prompt(width, height, pattern_name)
+    model = OPENAI_MODEL
 
-    resp = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "gpt-4o",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{img_b64}",
-                                "detail": "high",
+    print(f"Calling OpenAI model={model} for {width}x{height} grid")
+
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{img_b64}",
+                                    "detail": "high",
+                                },
                             },
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": 64000,
-            "temperature": 0.1,
-        },
-        timeout=120,
-    )
-    resp.raise_for_status()
+                        ],
+                    }
+                ],
+                "max_tokens": 16000,
+                "temperature": 0.1,
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        status = resp.status_code
+        detail = resp.text[:500] if resp.text else "no response body"
+        print(f"OpenAI HTTP {status}: {detail}")
+        raise ValueError(f"OpenAI API error {status}: {detail}")
+    except requests.exceptions.Timeout:
+        print("OpenAI request timed out (120s)")
+        raise ValueError("OpenAI request timed out after 120 seconds")
+    except requests.exceptions.ConnectionError as e:
+        print(f"OpenAI connection failed: {e}")
+        raise ValueError(f"Could not connect to OpenAI API: {e}")
+
     data = resp.json()
     text = data["choices"][0]["message"]["content"]
+    print(f"OpenAI response received ({len(text)} chars)")
     return _parse_grid(text, width, height)
 
 
