@@ -18,8 +18,6 @@ import * as ImagePicker from 'expo-image-picker';
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 const AI_PROVIDERS = [
   { key: 'openai', label: 'OpenAI GPT-4o', color: '#10A37F' },
-  { key: 'gemini', label: 'Google Gemini', color: '#4285F4' },
-  { key: 'grok', label: 'xAI Grok', color: '#333333' },
 ];
 
 export default function ImageToChartScreen({ navigation }) {
@@ -109,24 +107,8 @@ export default function ImageToChartScreen({ navigation }) {
       </View>
 
       {aiMode && (
-        <View style={styles.providerRow}>
-          {AI_PROVIDERS.map(p => (
-            <TouchableOpacity
-              key={p.key}
-              style={[styles.providerBtn, aiProvider === p.key && { backgroundColor: p.color }]}
-              onPress={() => setAiProvider(p.key)}
-            >
-              <Text style={[styles.providerText, aiProvider === p.key && styles.providerTextActive]}>
-                {p.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {aiMode && (
         <Text style={styles.aiNote}>
-          {t.imageToChartAiNote || 'Requer chave de API configurada no servidor (OPENAI_API_KEY, GEMINI_API_KEY ou GROK_API_KEY)'}
+          {t.imageToChartAiNote || 'Usa OpenAI GPT-4o. Requer OPENAI_API_KEY configurada no servidor Render'}
         </Text>
       )}
 
@@ -232,28 +214,6 @@ const styles = StyleSheet.create({
     color: '#6B4F8A',
   },
   aiToggleTextActive: {
-    color: '#FFFFFF',
-  },
-  providerRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  providerBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#E8DEF0',
-    margin: 2,
-  },
-  providerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B4F8A',
-  },
-  providerTextActive: {
     color: '#FFFFFF',
   },
   aiNote: {

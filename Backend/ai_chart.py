@@ -6,8 +6,6 @@ from io import BytesIO
 from PIL import Image
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GROK_API_KEY = os.environ.get("GROK_API_KEY", "")
 
 
 def _resize_image(image_data, max_size=800):
@@ -115,94 +113,8 @@ def generate_with_openai(image_data, width, height, pattern_name=None):
     return _parse_grid(text, width, height)
 
 
-def generate_with_gemini(image_data, width, height, pattern_name=None):
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY not configured on server")
-
-    img_b64 = base64.b64encode(image_data).decode("utf-8")
-    prompt = _build_prompt(width, height, pattern_name)
-
-    resp = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
-        headers={"Content-Type": "application/json"},
-        json={
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt},
-                        {
-                            "inline_data": {
-                                "mime_type": "image/png",
-                                "data": img_b64,
-                            }
-                        },
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.1,
-                "maxOutputTokens": 64000,
-            },
-        },
-        timeout=120,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    return _parse_grid(text, width, height)
-
-
-def generate_with_grok(image_data, width, height, pattern_name=None):
-    if not GROK_API_KEY:
-        raise ValueError("GROK_API_KEY not configured on server")
-
-    img_b64 = base64.b64encode(image_data).decode("utf-8")
-    prompt = _build_prompt(width, height, pattern_name)
-
-    resp = requests.post(
-        "https://api.x.ai/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {GROK_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "grok-2-vision",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{img_b64}",
-                                "detail": "high",
-                            },
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": 64000,
-            "temperature": 0.1,
-        },
-        timeout=120,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    text = data["choices"][0]["message"]["content"]
-    return _parse_grid(text, width, height)
-
-
-PROVIDERS = {
-    "openai": generate_with_openai,
-    "gemini": generate_with_gemini,
-    "grok": generate_with_grok,
-}
-
-
 def generate_grid(image_data, width, height, provider="openai", pattern_name=None):
     image_data = _resize_image(image_data)
-    fn = PROVIDERS.get(provider)
-    if not fn:
-        raise ValueError(f"Unknown AI provider: {provider}. Use: openai, gemini, grok")
-    return fn(image_data, width, height, pattern_name)
+    if provider != "openai":
+        raise ValueError(f"Unsupported provider: {provider}. Only 'openai' is available.")
+    return generate_with_openai(image_data, width, height, pattern_name)

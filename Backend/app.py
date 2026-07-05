@@ -12,7 +12,7 @@ from sweater_pattern import generate_sweater_pattern
 from stitch_patterns import generate_stitch_blanket, STITCH_PATTERNS, PATTERN_KEYS
 from stitch_library import get_all_patterns, save_custom_pattern, delete_custom_pattern, CATEGORIES, load_custom_patterns
 from recipe_generator import generate_recipe
-from ai_chart import generate_grid, PROVIDERS as AI_PROVIDERS
+from ai_chart import generate_grid
 
 load_dotenv()
 
