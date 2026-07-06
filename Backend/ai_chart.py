@@ -7,7 +7,9 @@ from io import BytesIO
 from PIL import Image
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 
 
 def _resize_image(image_data, max_size=800):
@@ -132,8 +134,63 @@ def generate_with_openai(image_data, width, height, pattern_name=None):
     return _parse_grid(text, width, height)
 
 
+def generate_with_gemini(image_data, width, height, pattern_name=None):
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not configured on server. Get a free key at https://ai.google.dev/")
+
+    img_b64 = base64.b64encode(image_data).decode("utf-8")
+    prompt = _build_prompt(width, height, pattern_name)
+    model = GEMINI_MODEL
+
+    print(f"Calling Gemini model={model} for {width}x{height} grid")
+
+    try:
+        resp = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}",
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/png",
+                                "data": img_b64,
+                            }
+                        },
+                    ]
+                }],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 16000,
+                },
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        status = resp.status_code
+        detail = resp.text[:500] if resp.text else "no response body"
+        print(f"Gemini HTTP {status}: {detail}")
+        raise ValueError(f"Gemini API error {status}: {detail}")
+    except requests.exceptions.Timeout:
+        print("Gemini request timed out (120s)")
+        raise ValueError("Gemini request timed out after 120 seconds")
+    except requests.exceptions.ConnectionError as e:
+        print(f"Gemini connection failed: {e}")
+        raise ValueError(f"Could not connect to Gemini API: {e}")
+
+    data = resp.json()
+    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    print(f"Gemini response received ({len(text)} chars)")
+    return _parse_grid(text, width, height)
+
+
 def generate_grid(image_data, width, height, provider="openai", pattern_name=None):
     image_data = _resize_image(image_data)
-    if provider != "openai":
-        raise ValueError(f"Unsupported provider: {provider}. Only 'openai' is available.")
-    return generate_with_openai(image_data, width, height, pattern_name)
+    if provider == "openai":
+        return generate_with_openai(image_data, width, height, pattern_name)
+    elif provider == "gemini":
+        return generate_with_gemini(image_data, width, height, pattern_name)
+    else:
+        raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'.")

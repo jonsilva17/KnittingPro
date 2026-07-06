@@ -26,6 +26,7 @@ export default function ImageToChartScreen({ navigation }) {
   const [imageBase64, setImageBase64] = useState(null);
   const [loading, setLoading] = useState(false);
   const [patternPicker, setPatternPicker] = useState(false);
+  const [aiProvider, setAiProvider] = useState('gemini');
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -69,12 +70,12 @@ export default function ImageToChartScreen({ navigation }) {
         pattern_key: patternKey,
         gauge_st: 22,
         gauge_rows: 30,
-        provider: 'openai',
+        provider: aiProvider,
       });
 
       navigation.navigate('StitchEditor', { initialSections: result.sections });
     } catch (e) {
-      Alert.alert(t.imageToChartError, e.message || 'Verifica se a chave de API está configurada no servidor');
+      Alert.alert(t.imageToChartError, e.message || 'Verifica a chave de API no servidor');
     } finally {
       setLoading(false);
     }
@@ -128,6 +129,21 @@ export default function ImageToChartScreen({ navigation }) {
           <Text style={styles.imageBtnText}>{t.imageToChartPickImage}</Text>
         )}
       </TouchableOpacity>
+
+      <View style={styles.providerRow}>
+        <TouchableOpacity
+          style={[styles.providerBtn, aiProvider === 'gemini' && styles.providerBtnActive]}
+          onPress={() => setAiProvider('gemini')}
+        >
+          <Text style={[styles.providerText, aiProvider === 'gemini' && styles.providerTextActive]}>Gemini (grátis)</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.providerBtn, aiProvider === 'openai' && styles.providerBtnActive]}
+          onPress={() => setAiProvider('openai')}
+        >
+          <Text style={[styles.providerText, aiProvider === 'openai' && styles.providerTextActive]}>OpenAI</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         style={[styles.actionBtn, { backgroundColor: '#B565A7' }]}
@@ -280,5 +296,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     paddingHorizontal: 20,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    backgroundColor: '#E8DEF0',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+    width: '100%',
+  },
+  providerBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  providerBtnActive: {
+    backgroundColor: '#6B4F8A',
+  },
+  providerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B4F8A',
+  },
+  providerTextActive: {
+    color: '#FFFFFF',
   },
 });
