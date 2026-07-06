@@ -313,7 +313,7 @@ export const LANG = {
     stitchToolbar: 'Stitch',
     stitchMeia: 'Stockinette',
     stitchLiga: 'Garter',
-    stitchTorcido: 'Twisted',
+    stitchTorcido: 'Cable Stitch',
     stitchBuraco: 'Hole',
     stitchBola: 'Bobble',
     stitch2pm: 'K2tog',
