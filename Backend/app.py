@@ -573,6 +573,26 @@ def colorwork_editor_pdf():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/pattern-gallery')
+def pattern_gallery():
+    import os, glob
+    patterns_dir = os.path.join(os.path.dirname(__file__), 'static', 'patterns')
+    os.makedirs(patterns_dir, exist_ok=True)
+    files = []
+    for fpath in sorted(glob.glob(os.path.join(patterns_dir, '*.*'))):
+        fname = os.path.basename(fpath)
+        ext = os.path.splitext(fname)[1].lower()
+        if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+            files.append({
+                "name": fname,
+                "url": f"/static/patterns/{fname}",
+                "title": " ".join(
+                    w.capitalize() for w in os.path.splitext(fname)[0].replace('_', ' ').split()
+                ),
+            })
+    return jsonify({"patterns": files})
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host='0.0.0.0', port=port)

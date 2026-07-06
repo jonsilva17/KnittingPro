@@ -90,9 +90,7 @@ export default function ImageToChartScreen({ navigation }) {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.title}>{t.imageToChartTitle}</Text>
 
-      <Text style={styles.aiNote}>
-        {t.imageToChartAiNote || 'Usa OpenAI GPT-4o. Requer OPENAI_API_KEY configurada no servidor Render'}
-      </Text>
+      {loading && <ActivityIndicator color="#B565A7" style={{ marginVertical: 10 }} />}
 
       <Text style={styles.sectionTitle}>{t.imageToChartSize}</Text>
       <View style={styles.sizeRow}>

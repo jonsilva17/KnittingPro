@@ -25,6 +25,9 @@ export const LANG = {
     stitchBlanketDesc: 'Combina padrões de meia e liga como as mantas Purl Soho',
     toyPatternDesc: 'Transforme uma imagem num brinquedo de tricô',
     imageToChartDesc: 'Converte uma imagem em gráfico de tricô com tamanho e padrão',
+    yarnColors: 'Cores do Fio',
+    yarnColorsHint: 'Toca numa cor para alterar',
+    patternGallery: 'Galeria de Padrões',
 
     // Stitch Editor
     editTitle: 'Editor de Pontos',
@@ -202,6 +205,9 @@ export const LANG = {
     stitchBlanketDesc: 'Combine knit and purl patterns like Purl Soho blankets',
     toyPatternDesc: 'Turn an image into a knitted toy',
     imageToChartDesc: 'Convert an image to a knitting chart with size and pattern',
+    yarnColors: 'Yarn Colors',
+    yarnColorsHint: 'Tap a color to change it',
+    patternGallery: 'Pattern Gallery',
 
     editTitle: 'Stitch Editor',
     editSubtitle: 'Draw each section and generate PDF with assembly guide',

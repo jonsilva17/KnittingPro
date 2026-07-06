@@ -97,7 +97,7 @@ function cloneSections(sections) {
   }));
 }
 
-export default function ColorworkEditorScreen({ navigation }) {
+export default function ColorworkEditorScreen({ navigation, route }) {
   const { t, lang } = useLang();
   const [garmentType, setGarmentType] = useState('sweater');
   const [sections, setSections] = useState([]);
@@ -111,7 +111,8 @@ export default function ColorworkEditorScreen({ navigation }) {
   const [gauge, setGauge] = useState('22');
   const [gaugeRows, setGaugeRows] = useState('30');
   const [loading, setLoading] = useState(false);
-  const [referenceImage, setReferenceImage] = useState(null);
+  const [referenceImage, setReferenceImage] = useState(route?.params?.referenceImage || null);
+  const [referenceTitle, setReferenceTitle] = useState(route?.params?.referenceTitle || null);
   const [projectModal, setProjectModal] = useState(false);
   const [mode, setMode] = useState('paint');
   const [selStart, setSelStart] = useState(null);

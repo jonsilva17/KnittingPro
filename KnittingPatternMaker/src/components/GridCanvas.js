@@ -1,21 +1,15 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 
-const STITCH_TYPES = [
-  { key: 'm', color: '#222222' },
-  { key: 'l', color: '#D4E6F1' },
-  { key: 't', color: '#A9DFBF' },
-  { key: 'b', color: '#FADBD8' },
-  { key: 'bo', color: '#D7BDE2' },
-  { key: '2pm', color: '#F9E79F' },
-  { key: '3pm', color: '#F5CBA7' },
-  { key: '_', color: '#E8E8E8' },
-];
+const DEFAULT_COLORS = {
+  m: '#222222', l: '#D4E6F1', t: '#A9DFBF', b: '#FADBD8',
+  bo: '#D7BDE2', '2pm': '#F9E79F', '3pm': '#F5CBA7', _: '#E8E8E8',
+};
 
-function lookupColor(k) {
-  return STITCH_TYPES.find(s => s.key === k)?.color || '#FFF';
+function lookupColor(k, colors) {
+  return colors?.[k] || DEFAULT_COLORS[k] || '#FFF';
 }
 
-function drawCell(ctx, val, x, y, cellSize, isSel, hasInc, hasDec) {
+function drawCell(ctx, val, x, y, cellSize, isSel, hasInc, hasDec, colors) {
   ctx.fillStyle = isSel ? '#E8DCF5' : '#FFF';
   ctx.fillRect(x, y, cellSize, cellSize);
 
@@ -30,7 +24,7 @@ function drawCell(ctx, val, x, y, cellSize, isSel, hasInc, hasDec) {
     return;
   }
 
-  const color = lookupColor(val);
+  const color = lookupColor(val, colors);
   const radius = cellSize * 0.4;
   const cx = x + cellSize / 2;
   const cy = y + cellSize / 2;
@@ -63,7 +57,7 @@ function drawCell(ctx, val, x, y, cellSize, isSel, hasInc, hasDec) {
   }
 }
 
-function drawGrid(ctx, grid, cellSize, increases, decreases, isSelectedFn) {
+function drawGrid(ctx, grid, cellSize, increases, decreases, isSelectedFn, colors) {
   const h = grid.length;
   const w = grid[0]?.length || 0;
   const offY = cellSize * 0.8;
@@ -94,7 +88,8 @@ function drawGrid(ctx, grid, cellSize, increases, decreases, isSelectedFn) {
         ctx, row[c], x, y, cellSize,
         isSelectedFn(r, c),
         increases?.some(p => p.r === r && p.c === c),
-        decreases?.some(p => p.r === r && p.c === c)
+        decreases?.some(p => p.r === r && p.c === c),
+        colors
       );
     }
   }
@@ -116,20 +111,22 @@ function initCanvas(canvas, grid, cellSize) {
   return ctx;
 }
 
-export default function GridCanvas({ grid, cellSize = 20, mode, selectedStitch, increases, decreases, isSelected, onCellPress, onGridChanged, style, onCellPaintStart }) {
+export default function GridCanvas({ grid, cellSize = 20, mode, selectedStitch, increases, decreases, isSelected, onCellPress, onGridChanged, style, onCellPaintStart, stitchColors }) {
   const canvasRef = useRef(null);
   const gridRef = useRef(null);
   const ctxRef = useRef(null);
   const paintingRef = useRef(false);
   const isSelectedRef = useRef(isSelected);
+  const stitchColorsRef = useRef(stitchColors);
   isSelectedRef.current = isSelected;
+  stitchColorsRef.current = stitchColors;
 
   useEffect(() => {
     if (!canvasRef.current || !grid?.length) return;
     gridRef.current = grid.map(r => [...r]);
     const ctx = initCanvas(canvasRef.current, gridRef.current, cellSize);
     ctxRef.current = ctx;
-    drawGrid(ctx, gridRef.current, cellSize, increases, decreases, (r, c) => isSelectedRef.current(r, c));
+    drawGrid(ctx, gridRef.current, cellSize, increases, decreases, (r, c) => isSelectedRef.current(r, c), stitchColorsRef.current);
   }, [grid, cellSize, increases, decreases]);
 
   const drawCellAt = useCallback((ctx, r, c) => {
@@ -140,7 +137,8 @@ export default function GridCanvas({ grid, cellSize = 20, mode, selectedStitch, 
       ctx, gridRef.current[r][c], x, y, cellSize,
       isSelectedRef.current(r, c),
       increases?.some(p => p.r === r && p.c === c),
-      decreases?.some(p => p.r === r && p.c === c)
+      decreases?.some(p => p.r === r && p.c === c),
+      stitchColorsRef.current
     );
   }, [cellSize, increases, decreases]);
 

@@ -472,6 +472,8 @@ export default function StitchEditorScreen({ navigation, route }) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [referenceImage, setReferenceImage] = useState(null);
+  const [stitchColors, setStitchColors] = useState({});
+  const [colorModal, setColorModal] = useState(false);
   const [notes, setNotes] = useState('');
   const [chestCm, setChestCm] = useState('');
   const [lengthCm, setLengthCm] = useState('');
@@ -1493,6 +1495,40 @@ export default function StitchEditorScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      <Modal visible={colorModal} transparent animationType="slide">
+        <View style={styles.recipeOverlay}>
+          <View style={styles.recipeContainer}>
+            <Text style={styles.recipeTitle}>🎨 {t.yarnColors || 'Cores do Fio'}</Text>
+            <Text style={styles.recipeCloseHint}>{t.yarnColorsHint || 'Toca numa cor para alterar'}</Text>
+            <ScrollView style={{ flex: 1 }}>
+              {STITCH_TYPES.filter(st => st.key !== '_').map(st => (
+                <View key={st.key} style={styles.colorRow}>
+                  <Text style={styles.colorLabel}>{st.label} — {st.name}</Text>
+                  <View style={styles.colorSwatches}>
+                    {['#222222','#FFFFFF','#CC0000','#003366','#6699CC','#006600','#FFCC00','#FF6600','#660099','#FF69B4','#999999','#A0522D','#1A237E','#D4E6F1','#A9DFBF','#FADBD8','#D7BDE2','#F9E79F','#F5CBA7','#E8E8E8','#40E0D0','#FA8072','#98FB98','#FFB6C1'].map(c => (
+                      <TouchableOpacity
+                        key={c}
+                        style={[
+                          styles.colorSwatch,
+                          { backgroundColor: c },
+                          (stitchColors[st.key] || st.color) === c && styles.colorSwatchSelected,
+                        ]}
+                        onPress={() => setStitchColors(prev => ({ ...prev, [st.key]: c }))}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.recipeActions}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setColorModal(false)}>
+                <Text style={styles.closeBtnText}>{t.close}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ProjectModal
         visible={projectModal}
         onClose={() => setProjectModal(false)}
@@ -1518,6 +1554,7 @@ export default function StitchEditorScreen({ navigation, route }) {
               onCellPress={(r, c) => { activeIdxRef.current = idx; setActiveIndex(idx); handleCellPress(r, c); }}
               onCellPaintStart={(r, c) => { activeIdxRef.current = idx; setActiveIndex(idx); handleCellPointerDown(r, c); }}
               onGridChanged={(newGrid) => { activeIdxRef.current = idx; setActiveIndex(idx); handleGridChanged(newGrid); }}
+              stitchColors={stitchColors}
             />
           </View>
         </View>
@@ -1601,6 +1638,10 @@ export default function StitchEditorScreen({ navigation, route }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity style={styles.colorBtn} onPress={() => setColorModal(true)}>
+        <Text style={styles.colorBtnText}>🎨 {t.yarnColors || 'Cores do Fio'}</Text>
+      </TouchableOpacity>
 
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>{t.pdfIncludes}</Text>
@@ -1813,4 +1854,11 @@ const styles = StyleSheet.create({
   generateBtn: { backgroundColor: '#6B4F8A', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center', marginTop: 16, width: '100%' },
   btnDisabled: { opacity: 0.6 },
   generateBtnText: { fontSize: 18, color: '#FFF', fontWeight: 'bold' },
+  colorBtn: { backgroundColor: '#F0EBF8', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center', marginTop: 6, width: '100%', borderWidth: 1, borderColor: '#6B4F8A' },
+  colorBtnText: { fontSize: 14, color: '#6B4F8A', fontWeight: '600' },
+  colorRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  colorLabel: { fontSize: 13, color: '#333', fontWeight: '600', width: 100 },
+  colorSwatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1 },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#DDD' },
+  colorSwatchSelected: { borderColor: '#6B4F8A', borderWidth: 3 },
 });

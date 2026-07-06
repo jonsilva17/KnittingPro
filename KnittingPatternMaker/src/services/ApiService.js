@@ -268,3 +268,9 @@ export async function generateStitchRecipe(options) {
   }
   return res.json();
 }
+
+export async function fetchPatternGallery() {
+  const res = await fetch(`${API_URL}/api/pattern-gallery`);
+  if (!res.ok) throw new Error('Erro ao carregar galeria');
+  return res.json();
+}

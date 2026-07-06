@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,45 @@ import {
   StyleSheet,
   Platform,
   useWindowDimensions,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useLang } from '../lang';
+import { fetchPatternGallery } from '../services/ApiService';
+import { uriToBase64 } from '../services/ApiService';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function HomeScreen({ navigation }) {
   const { height: windowHeight } = useWindowDimensions();
   const { lang, setLang, t } = useLang();
+  const [galleryPatterns, setGalleryPatterns] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setGalleryLoading(true);
+      try {
+        const data = await fetchPatternGallery();
+        setGalleryPatterns(data.patterns || []);
+      } catch (e) {
+        // silently fail
+      } finally {
+        setGalleryLoading(false);
+      }
+    })();
+  }, []);
+
+  const openPatternInEditor = async (pattern) => {
+    try {
+      const url = `${API_URL}${pattern.url}`;
+      const b64 = await uriToBase64(url);
+      navigation.navigate('ColorworkEditor', { referenceImage: b64, referenceTitle: pattern.title });
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível carregar o padrão');
+    }
+  };
 
   const headerHeight = Platform.OS === 'web' ? 100 : 0;
   const contentHeight = windowHeight - headerHeight;
@@ -62,6 +95,20 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.primaryButtonText}>🖼️ {t.imageToChart}</Text>
         <Text style={styles.primaryButtonDesc}>{t.imageToChartDesc}</Text>
       </TouchableOpacity>
+
+      {galleryPatterns.length > 0 && (
+        <>
+          <Text style={styles.galleryTitle}>{t.patternGallery || 'Galeria de Padrões'}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
+            {galleryPatterns.map((p, i) => (
+              <TouchableOpacity key={i} style={styles.galleryCard} onPress={() => openPatternInEditor(p)}>
+                <Image source={{ uri: `${API_URL}${p.url}` }} style={styles.galleryImage} />
+                <Text style={styles.galleryLabel}>{p.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
 
     </View>
   );
@@ -157,5 +204,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#E8DEF0',
     marginTop: 4,
+  },
+  galleryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6B4F8A',
+    alignSelf: 'flex-start',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  galleryScroll: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  galleryCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginRight: 12,
+    width: 160,
+    overflow: 'hidden',
+    elevation: 2,
+    ...Platform.select({ web: { boxShadow: '0 2px 4px rgba(0,0,0,0.1)' } }),
+  },
+  galleryImage: {
+    width: 160,
+    height: 120,
+    resizeMode: 'cover',
+  },
+  galleryLabel: {
+    fontSize: 11,
+    color: '#555',
+    padding: 8,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
