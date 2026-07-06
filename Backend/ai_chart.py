@@ -49,7 +49,15 @@ def _parse_grid(response_text, expected_w, expected_h):
         text = text.rsplit("```", 1)[0]
         text = text.strip()
 
-    data = json.loads(text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error: {e}")
+        print(f"Raw response text ({len(text)} chars): {text[:3000]}")
+        print(f"... (middle omitted) ...")
+        print(f"Last 1000 chars: {text[-1000:]}")
+        raise ValueError(f"AI returned invalid JSON: {e}")
+
     grid = data.get("grid", data.get("chart", data.get("pattern", [])))
 
     if not grid or not isinstance(grid, list):
