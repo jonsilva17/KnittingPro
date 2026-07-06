@@ -20,14 +20,14 @@ import { useLang } from '../lang';
 import { createStitchEditorPattern, getStitchPreview, uriToBase64, saveCustomPattern, generateStitchRecipe } from '../services/ApiService';
 
 const STITCH_TYPES = [
-  { key: 'm', label: 'm', name: 'Meia', color: '#222222' },
-  { key: 'l', label: 'l', name: 'Liga', color: '#D4E6F1' },
-  { key: 't', label: 't', name: 'Torcido', color: '#A9DFBF' },
-  { key: 'b', label: 'b', name: 'Buraco', color: '#FADBD8' },
-  { key: 'bo', label: 'bo', name: 'Bola', color: '#D7BDE2' },
-  { key: '2pm', label: '2pm', name: '2pM', color: '#F9E79F' },
-  { key: '3pm', label: '3pm', name: '3pM', color: '#F5CBA7' },
-  { key: '_', label: '✕', name: 'Fora', color: '#E8E8E8' },
+  { key: 'm', label: 'm', name: 'Meia', color: '#222222', nameKey: 'stitchMeia' },
+  { key: 'l', label: 'l', name: 'Liga', color: '#D4E6F1', nameKey: 'stitchLiga' },
+  { key: 't', label: 't', name: 'Torcido', color: '#A9DFBF', nameKey: 'stitchTorcido' },
+  { key: 'b', label: 'b', name: 'Buraco', color: '#FADBD8', nameKey: 'stitchBuraco' },
+  { key: 'bo', label: 'bo', name: 'Bola', color: '#D7BDE2', nameKey: 'stitchBola' },
+  { key: '2pm', label: '2pm', name: '2pM', color: '#F9E79F', nameKey: 'stitch2pm' },
+  { key: '3pm', label: '3pm', name: '3pM', color: '#F5CBA7', nameKey: 'stitch3pm' },
+  { key: '_', label: '✕', name: 'Fora', color: '#E8E8E8', nameKey: 'stitchFora' },
 ];
 
 const GARMENT_TYPES = [
@@ -1634,7 +1634,7 @@ export default function StitchEditorScreen({ navigation, route }) {
             onPress={() => setSelectedStitch(st.key)}
           >
             <Text style={[styles.toolBtnText, selectedStitch === st.key && styles.toolBtnTextSelected]}>{st.label}</Text>
-            <Text style={styles.toolBtnName}>{st.name}</Text>
+            <Text style={styles.toolBtnName}>{t[st.nameKey] || st.name}</Text>
           </TouchableOpacity>
         ))}
       </View>

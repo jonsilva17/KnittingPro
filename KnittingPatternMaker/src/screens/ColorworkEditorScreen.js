@@ -483,7 +483,7 @@ export default function ColorworkEditorScreen({ navigation, route }) {
                 style={[styles.providerBtn, aiProvider === p && styles.providerBtnActive]}
                 onPress={() => setAiProvider(p)}
               >
-                <Text style={[styles.providerText, aiProvider === p && styles.providerTextActive]}>{p === 'groq' ? 'Groq (grátis)' : p === 'gemini' ? 'Gemini' : 'OpenAI'}</Text>
+                <Text style={[styles.providerText, aiProvider === p && styles.providerTextActive]}>{p === 'groq' ? 'Groq' : p === 'gemini' ? 'Gemini' : 'OpenAI'}</Text>
               </TouchableOpacity>
             ))}
           </View>
