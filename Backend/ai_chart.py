@@ -12,7 +12,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.2-11b-vision-preview")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 
 def _resize_image(image_data, max_size=800):
@@ -39,47 +39,23 @@ Rules:
 - The grid MUST be exactly {width} columns and {height} rows"""
 
 
-def _fix_json(text):
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1]
-        text = text.rsplit("```", 1)[0]
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-        text = text.rsplit("```", 1)[0]
-        text = text.strip()
-    if not text.startswith("{"):
-        brace = text.find("{")
-        if brace >= 0:
-            text = text[brace:]
-    if text.endswith(","):
-        text = text[:-1]
-    if not text.endswith("}"):
-        text = text + "}"
-        last_grid = text.rfind('"]')
-        if last_grid >= 0:
-            text = text[:last_grid + 2] + "]}]}"
-    return text
-
-
 def _parse_grid(response_text, expected_w, expected_h):
-    text = _fix_json(response_text)
+    text = response_text.strip()
+    text = re.sub(r'```[\w]*\n?', '', text).strip()
+    brace = text.find('{')
+    if brace >= 0:
+        text = text[brace:]
     try:
         data = json.loads(text)
-    except json.JSONDecodeError:
-        print("Fallback: JSON still invalid, extracting grid manually")
-        rows = [line.strip() for line in text.split("\n") if '"' in line]
+        grid = data.get("grid", data.get("chart", data.get("pattern", [])))
+    except (json.JSONDecodeError, ValueError):
+        print("Fallback: regex extracting grid from raw text")
+        rows_raw = text.replace('},{', '}\n{').split('\n')
         grid = []
-        for row in rows:
+        for row in rows_raw:
             cells = re.findall(r'"([ml])"', row)
             if cells:
                 grid.append(cells)
-        if grid:
-            return _upscale_grid(grid, expected_w, expected_h)
-        raise ValueError("AI returned unparseable response")
-    grid = data.get("grid", data.get("chart", data.get("pattern", [])))
-
     if not grid or not isinstance(grid, list):
         raise ValueError("AI response did not contain a valid grid")
 
