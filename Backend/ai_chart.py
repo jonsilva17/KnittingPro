@@ -8,8 +8,10 @@ from PIL import Image
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.2-90b-vision-preview")
 
 
 def _resize_image(image_data, max_size=800):
@@ -186,11 +188,70 @@ def generate_with_gemini(image_data, width, height, pattern_name=None):
     return _parse_grid(text, width, height)
 
 
+def generate_with_groq(image_data, width, height, pattern_name=None):
+    if not GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY not configured. Get a free key at https://console.groq.com/keys")
+
+    img_b64 = base64.b64encode(image_data).decode("utf-8")
+    prompt = _build_prompt(width, height, pattern_name)
+    model = GROQ_MODEL
+
+    print(f"Calling Groq model={model} for {width}x{height} grid")
+
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{img_b64}",
+                                },
+                            },
+                        ],
+                    }
+                ],
+                "max_tokens": 16000,
+                "temperature": 0.1,
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        status = resp.status_code
+        detail = resp.text[:500] if resp.text else "no response body"
+        print(f"Groq HTTP {status}: {detail}")
+        raise ValueError(f"Groq API error {status}: {detail}")
+    except requests.exceptions.Timeout:
+        print("Groq request timed out (120s)")
+        raise ValueError("Groq request timed out after 120 seconds")
+    except requests.exceptions.ConnectionError as e:
+        print(f"Groq connection failed: {e}")
+        raise ValueError(f"Could not connect to Groq API: {e}")
+
+    data = resp.json()
+    text = data["choices"][0]["message"]["content"]
+    print(f"Groq response received ({len(text)} chars)")
+    return _parse_grid(text, width, height)
+
+
 def generate_grid(image_data, width, height, provider="openai", pattern_name=None):
     image_data = _resize_image(image_data)
     if provider == "openai":
         return generate_with_openai(image_data, width, height, pattern_name)
     elif provider == "gemini":
         return generate_with_gemini(image_data, width, height, pattern_name)
+    elif provider == "groq":
+        return generate_with_groq(image_data, width, height, pattern_name)
     else:
-        raise ValueError(f"Unsupported provider: {provider}. Use 'openai' or 'gemini'.")
+        raise ValueError(f"Unsupported provider: {provider}. Use 'openai', 'gemini', or 'groq'.")
