@@ -88,14 +88,6 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.primaryButtonDesc}>{t.colorworkEditorDesc}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.primaryButton, { backgroundColor: '#B565A7' }]}
-        onPress={() => navigation.navigate('ImageToChart')}
-      >
-        <Text style={styles.primaryButtonText}>🖼️ {t.imageToChart}</Text>
-        <Text style={styles.primaryButtonDesc}>{t.imageToChartDesc}</Text>
-      </TouchableOpacity>
-
       {galleryPatterns.length > 0 && (
         <>
           <Text style={styles.galleryTitle}>{t.patternGallery || 'Galeria de Padrões'}</Text>

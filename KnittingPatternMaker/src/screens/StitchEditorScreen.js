@@ -20,14 +20,14 @@ import { useLang } from '../lang';
 import { createStitchEditorPattern, getStitchPreview, uriToBase64, saveCustomPattern, generateStitchRecipe } from '../services/ApiService';
 
 const STITCH_TYPES = [
-  { key: 'm', label: 'm', name: 'Meia', color: '#222222', nameKey: 'stitchMeia' },
-  { key: 'l', label: 'l', name: 'Liga', color: '#D4E6F1', nameKey: 'stitchLiga' },
-  { key: 't', label: 't', name: 'Torcido', color: '#A9DFBF', nameKey: 'stitchTorcido' },
-  { key: 'b', label: 'b', name: 'Buraco', color: '#FADBD8', nameKey: 'stitchBuraco' },
-  { key: 'bo', label: 'bo', name: 'Bola', color: '#D7BDE2', nameKey: 'stitchBola' },
-  { key: '2pm', label: '2pm', name: '2pM', color: '#F9E79F', nameKey: 'stitch2pm' },
-  { key: '3pm', label: '3pm', name: '3pM', color: '#F5CBA7', nameKey: 'stitch3pm' },
-  { key: '_', label: '✕', name: 'Fora', color: '#E8E8E8', nameKey: 'stitchFora' },
+  { key: 'm', label: 'm', name: 'Meia', color: '#222222', nameKey: 'stitchMeia', labelKey: 'stitchMeiaLabel' },
+  { key: 'l', label: 'l', name: 'Liga', color: '#D4E6F1', nameKey: 'stitchLiga', labelKey: 'stitchLigaLabel' },
+  { key: 't', label: 't', name: 'Torcido', color: '#A9DFBF', nameKey: 'stitchTorcido', labelKey: 'stitchTorcidoLabel' },
+  { key: 'b', label: 'b', name: 'Buraco', color: '#FADBD8', nameKey: 'stitchBuraco', labelKey: 'stitchBuracoLabel' },
+  { key: 'bo', label: 'bo', name: 'Bola', color: '#D7BDE2', nameKey: 'stitchBola', labelKey: 'stitchBolaLabel' },
+  { key: '2pm', label: '2pm', name: '2pM', color: '#F9E79F', nameKey: 'stitch2pm', labelKey: 'stitch2pmLabel' },
+  { key: '3pm', label: '3pm', name: '3pM', color: '#F5CBA7', nameKey: 'stitch3pm', labelKey: 'stitch3pmLabel' },
+  { key: '_', label: '✕', name: 'Fora', color: '#E8E8E8', nameKey: 'stitchFora', labelKey: 'stitchForaLabel' },
 ];
 
 const GARMENT_TYPES = [
@@ -1633,7 +1633,7 @@ export default function StitchEditorScreen({ navigation, route }) {
             style={[styles.toolBtn, selectedStitch === st.key && styles.toolBtnSelected]}
             onPress={() => setSelectedStitch(st.key)}
           >
-            <Text style={[styles.toolBtnText, selectedStitch === st.key && styles.toolBtnTextSelected]}>{st.label}</Text>
+            <Text style={[styles.toolBtnText, selectedStitch === st.key && styles.toolBtnTextSelected]}>{t[st.labelKey] || st.label}</Text>
             <Text style={styles.toolBtnName}>{t[st.nameKey] || st.name}</Text>
           </TouchableOpacity>
         ))}
