@@ -135,19 +135,19 @@ export default function ImageToChartScreen({ navigation }) {
           style={[styles.providerBtn, aiProvider === 'groq' && styles.providerBtnActive]}
           onPress={() => setAiProvider('groq')}
         >
-          <Text style={[styles.providerText, aiProvider === 'groq' && styles.providerTextActive]}>Groq (grátis)</Text>
+          <Text style={[styles.providerText, aiProvider === 'groq' && styles.providerTextActive]}>{t.providerGroq}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.providerBtn, aiProvider === 'gemini' && styles.providerBtnActive]}
           onPress={() => setAiProvider('gemini')}
         >
-          <Text style={[styles.providerText, aiProvider === 'gemini' && styles.providerTextActive]}>Gemini</Text>
+          <Text style={[styles.providerText, aiProvider === 'gemini' && styles.providerTextActive]}>{t.providerGemini}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.providerBtn, aiProvider === 'openai' && styles.providerBtnActive]}
           onPress={() => setAiProvider('openai')}
         >
-          <Text style={[styles.providerText, aiProvider === 'openai' && styles.providerTextActive]}>OpenAI</Text>
+          <Text style={[styles.providerText, aiProvider === 'openai' && styles.providerTextActive]}>{t.providerOpenAI}</Text>
         </TouchableOpacity>
       </View>
 

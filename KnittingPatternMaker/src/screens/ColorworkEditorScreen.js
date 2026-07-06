@@ -475,7 +475,7 @@ export default function ColorworkEditorScreen({ navigation, route }) {
 
       {referenceImage && (
         <>
-          <Text style={styles.sectionLabel}>Assistente IA</Text>
+          <Text style={styles.sectionLabel}>{t.aiAssist}</Text>
           <View style={styles.providerRow}>
             {['groq','gemini','openai'].map(p => (
               <TouchableOpacity
@@ -483,7 +483,7 @@ export default function ColorworkEditorScreen({ navigation, route }) {
                 style={[styles.providerBtn, aiProvider === p && styles.providerBtnActive]}
                 onPress={() => setAiProvider(p)}
               >
-                <Text style={[styles.providerText, aiProvider === p && styles.providerTextActive]}>{p === 'groq' ? 'Groq' : p === 'gemini' ? 'Gemini' : 'OpenAI'}</Text>
+                <Text style={[styles.providerText, aiProvider === p && styles.providerTextActive]}>{p === 'groq' ? t.providerGroq : p === 'gemini' ? t.providerGemini : t.providerOpenAI}</Text>
               </TouchableOpacity>
             ))}
           </View>
