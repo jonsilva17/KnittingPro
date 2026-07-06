@@ -17,6 +17,31 @@ import { uriToBase64 } from '../services/ApiService';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
+function DecoCircle({ size, top, left, color, opacity }) {
+  return (
+    <View style={{
+      position: 'absolute', top, left, width: size, height: size,
+      borderRadius: size / 2, backgroundColor: color, opacity: opacity || 0.12,
+    }} />
+  );
+}
+
+function WavyLine({ style }) {
+  return (
+    <View style={[{ width: '100%', height: 8, overflow: 'hidden' }, style]}>
+      <View style={{ flexDirection: 'row', height: 8 }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <View key={i} style={{
+            width: 16, height: 16, borderRadius: 8,
+            backgroundColor: '#2D5A27', opacity: 0.08,
+            marginLeft: -4, marginTop: -4,
+          }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const { height: windowHeight } = useWindowDimensions();
   const { lang, setLang, t } = useLang();
@@ -52,6 +77,11 @@ export default function HomeScreen({ navigation }) {
 
   const content = (
     <View style={styles.container}>
+      <DecoCircle size={160} top={-40} left={-50} color="#C96B4E" />
+      <DecoCircle size={100} top={60} left={-20} color="#2D5A27" />
+      <DecoCircle size={80} top={-20} right={-30} color="#D4A84B" />
+      <DecoCircle size={200} bottom={-60} right={-60} color="#2D5A27" />
+
       <View style={styles.langRow}>
         <TouchableOpacity
           style={[styles.langBtn, lang === 'pt' && styles.langBtnActive]}
@@ -67,29 +97,52 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>{t.appName}</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+      <View style={styles.headerSection}>
+        <View style={styles.headerDeco}>
+          {['#C96B4E', '#D4A84B', '#2D5A27'].map((c, i) => (
+            <View key={i} style={[styles.headerStripe, { backgroundColor: c, opacity: 0.2 + i * 0.1 }]} />
+          ))}
+        </View>
+        <Text style={styles.title}>Pointy Lines</Text>
+        <Text style={styles.tagline}>{t.subtitle}</Text>
+        <View style={styles.titleUnderline} />
+      </View>
 
-      <Image source={require('../../assets/icon.png')} style={styles.appIcon} />
+      <View style={styles.buttonSection}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('StitchEditor')}
+        >
+          <View style={styles.btnIconCircle}>
+            <Text style={styles.btnIcon}>✏️</Text>
+          </View>
+          <View style={styles.btnTextWrap}>
+            <Text style={styles.primaryButtonText}>{t.stitchEditor}</Text>
+            <Text style={styles.primaryButtonDesc}>{t.stitchEditorDesc}</Text>
+          </View>
+          <Text style={styles.btnArrow}>›</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.primaryButton, { backgroundColor: '#4A8B6F' }]}
-        onPress={() => navigation.navigate('StitchEditor')}
-      >
-        <Text style={styles.primaryButtonText}>✏️ {t.stitchEditor}</Text>
-        <Text style={styles.primaryButtonDesc}>{t.stitchEditorDesc}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.primaryButton, { backgroundColor: '#1A237E' }]}
-        onPress={() => navigation.navigate('ColorworkEditor')}
-      >
-        <Text style={styles.primaryButtonText}>🎨 {t.colorworkEditor}</Text>
-        <Text style={styles.primaryButtonDesc}>{t.colorworkEditorDesc}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('ColorworkEditor')}
+        >
+          <View style={styles.btnIconCircle}>
+            <Text style={styles.btnIcon}>🎨</Text>
+          </View>
+          <View style={styles.btnTextWrap}>
+            <Text style={styles.primaryButtonText}>{t.colorworkEditor}</Text>
+            <Text style={styles.primaryButtonDesc}>{t.colorworkEditorDesc}</Text>
+          </View>
+          <Text style={styles.btnArrow}>›</Text>
+        </TouchableOpacity>
+      </View>
 
       {galleryPatterns.length > 0 && (
         <>
+          <WavyLine style={{ marginTop: 12, marginBottom: 6 }} />
           <Text style={styles.galleryTitle}>{t.patternGallery || 'Galeria de Padrões'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
             {galleryPatterns.map((p, i) => (
@@ -102,6 +155,9 @@ export default function HomeScreen({ navigation }) {
         </>
       )}
 
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Pointy Lines © 2026</Text>
+      </View>
     </View>
   );
 
@@ -124,10 +180,11 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#F5F0FF',
+    backgroundColor: '#FDF6EE',
     alignItems: 'center',
     padding: 20,
     position: 'relative',
+    overflow: 'hidden',
   },
   langRow: {
     flexDirection: 'row',
@@ -141,68 +198,123 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     marginLeft: 4,
-    backgroundColor: '#E8DEF0',
+    backgroundColor: '#EDE0D4',
   },
   langBtnActive: {
-    backgroundColor: '#6B4F8A',
+    backgroundColor: '#2D5A27',
   },
   langBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B4F8A',
+    color: '#2D5A27',
   },
   langBtnTextActive: {
     color: '#FFFFFF',
   },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#6B4F8A',
-    marginTop: 20,
-    marginBottom: 6,
-    textAlign: 'center',
+  headerSection: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 32,
+    width: '100%',
+    position: 'relative',
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  appIcon: {
-    width: 80,
+  headerDeco: {
+    position: 'absolute',
+    top: -10,
+    left: 0,
+    right: 0,
     height: 80,
-    marginBottom: 24,
+    borderRadius: 40,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  headerStripe: {
+    flex: 1,
+    height: 80,
+    borderRadius: 40,
+    marginHorizontal: -4,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#2D5A27',
+    textAlign: 'center',
+    letterSpacing: 1,
+    zIndex: 1,
+  },
+  tagline: {
+    fontSize: 14,
+    color: '#8B7355',
+    textAlign: 'center',
+    marginTop: 6,
+    fontStyle: 'italic',
+    zIndex: 1,
+  },
+  titleUnderline: {
+    width: 60,
+    height: 3,
+    backgroundColor: '#C96B4E',
+    borderRadius: 2,
+    marginTop: 10,
+    zIndex: 1,
+  },
+  buttonSection: {
+    width: '100%',
+    gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#6B4F8A',
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 8,
-    elevation: 3,
+    elevation: 4,
     ...Platform.select({
-      web: { boxShadow: '0 4px 6px rgba(107, 79, 138, 0.3)' },
+      web: { boxShadow: '0 4px 12px rgba(45, 90, 39, 0.12)' },
     }),
+    borderWidth: 1,
+    borderColor: '#E8DDD0',
+  },
+  btnIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FDF6EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    borderWidth: 1.5,
+    borderColor: '#E8DDD0',
+  },
+  btnIcon: {
+    fontSize: 22,
+  },
+  btnTextWrap: {
+    flex: 1,
   },
   primaryButtonText: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 17,
+    color: '#2D5A27',
+    fontWeight: '700',
   },
   primaryButtonDesc: {
     fontSize: 12,
-    color: '#E8DEF0',
-    marginTop: 4,
+    color: '#8B7355',
+    marginTop: 2,
+  },
+  btnArrow: {
+    fontSize: 24,
+    color: '#C96B4E',
+    fontWeight: '300',
+    marginLeft: 8,
   },
   galleryTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#6B4F8A',
+    color: '#2D5A27',
     alignSelf: 'flex-start',
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 10,
   },
   galleryScroll: {
@@ -216,7 +328,9 @@ const styles = StyleSheet.create({
     width: 160,
     overflow: 'hidden',
     elevation: 2,
-    ...Platform.select({ web: { boxShadow: '0 2px 4px rgba(0,0,0,0.1)' } }),
+    ...Platform.select({ web: { boxShadow: '0 2px 4px rgba(0,0,0,0.08)' } }),
+    borderWidth: 1,
+    borderColor: '#E8DDD0',
   },
   galleryImage: {
     width: 160,
@@ -225,9 +339,17 @@ const styles = StyleSheet.create({
   },
   galleryLabel: {
     fontSize: 11,
-    color: '#555',
+    color: '#2D5A27',
     padding: 8,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  footer: {
+    marginTop: 20,
+    paddingBottom: 10,
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#B8A58E',
   },
 });
