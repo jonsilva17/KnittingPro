@@ -2422,7 +2422,7 @@ JACQUARD_COLORS = {
 }
 
 
-def generate_colorwork_editor_pdf(sections, output_path, garment_type="sweater", gauge_st=22, gauge_rows=30, image_b64=None, colors=None):
+def generate_colorwork_editor_pdf(sections, output_path, garment_type="sweater", gauge_st=22, gauge_rows=30, image_b64=None, colors=None, project_name=None, notes=None, needle=None, lang='pt'):
     c = canvas.Canvas(output_path, pagesize=A4)
 
     garment_names = {

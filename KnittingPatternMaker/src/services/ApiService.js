@@ -111,6 +111,10 @@ export async function createStitchEditorPattern(options) {
       gauge_rows: options.gauge_rows,
       image_base64: options.image_base64 || null,
       project_name: options.project_name || null,
+      notes: options.notes || null,
+      recipe_text: options.recipe_text || null,
+      needle: options.needle || null,
+      lang: options.lang || 'pt',
     }),
   });
 
@@ -133,6 +137,10 @@ export async function createColorworkEditorPattern(options) {
       gauge_rows: options.gauge_rows,
       image_base64: options.image_base64 || null,
       colors: options.colors,
+      project_name: options.project_name || null,
+      notes: options.notes || null,
+      needle: options.needle || null,
+      lang: options.lang || 'pt',
     }),
   });
 

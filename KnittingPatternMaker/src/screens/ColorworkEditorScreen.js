@@ -15,7 +15,7 @@ import ScrollWrapper from '../components/ScrollWrapper';
 import ProjectModal from '../components/ProjectModal';
 import ColorPicker from '../components/ColorPicker';
 import { useLang } from '../lang';
-import { createColorworkEditorPattern, uriToBase64 } from '../services/ApiService';
+import { createColorworkEditorPattern, imageToChartAI, uriToBase64 } from '../services/ApiService';
 
 const COLOR_PALETTE = [
   { key: 'white', label: 'Branco', labelEn: 'White', color: '#FFFFFF' },
@@ -111,8 +111,10 @@ export default function ColorworkEditorScreen({ navigation, route }) {
   const [gauge, setGauge] = useState('22');
   const [gaugeRows, setGaugeRows] = useState('30');
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [referenceImage, setReferenceImage] = useState(route?.params?.referenceImage || null);
   const [referenceTitle, setReferenceTitle] = useState(route?.params?.referenceTitle || null);
+  const [aiProvider, setAiProvider] = useState('gemini');
   const [projectModal, setProjectModal] = useState(false);
   const [mode, setMode] = useState('paint');
   const [selStart, setSelStart] = useState(null);
@@ -350,6 +352,55 @@ export default function ColorworkEditorScreen({ navigation, route }) {
     finally { setLoading(false); }
   };
 
+  const handleAIConvert = async () => {
+    if (!referenceImage) return;
+    setAiLoading(true);
+    try {
+      const b64 = await uriToBase64(referenceImage);
+      const result = await imageToChartAI({
+        image_base64: b64,
+        size_key: 'M',
+        pattern_key: null,
+        gauge_st: parseInt(gauge, 10) || 22,
+        gauge_rows: parseInt(gaugeRows, 10) || 30,
+        provider: aiProvider,
+      });
+      pushHistory();
+      setSections(prev => {
+        const next = cloneSections(prev);
+        if (!result.sections || result.sections.length === 0) return next;
+        const aiSections = result.sections;
+        next.forEach((sec, idx) => {
+          const aiSec = aiSections[idx % aiSections.length];
+          if (!aiSec || !aiSec.grid) return;
+          const w = parseInt(sec.width, 10) || 20;
+          const h = parseInt(sec.height, 10) || 20;
+          const aiGrid = aiSec.grid;
+          const aiH = aiGrid.length;
+          const aiW = aiGrid[0]?.length || 1;
+          const newGrid = [];
+          for (let r = 0; r < h; r++) {
+            const row = [];
+            for (let c = 0; c < w; c++) {
+              const ar = Math.floor((r / h) * aiH);
+              const ac = Math.floor((c / w) * aiW);
+              const cell = aiGrid[Math.min(ar, aiH - 1)]?.[Math.min(ac, aiW - 1)] || 'm';
+              row.push(cell === 'm' ? selectedColor : 'white');
+            }
+            newGrid.push(row);
+          }
+          next[idx].grid = newGrid;
+        });
+        return next;
+      });
+      Alert.alert(t.success, 'Grid gerado pela IA. Ajusta as cores conforme necessário.');
+    } catch (e) {
+      Alert.alert(t.imageToChartError, e.message || 'Erro ao converter com IA');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const secLabel = (sec) => t[sec.key] || sec.label;
 
   if (!active) return null;
@@ -421,6 +472,26 @@ export default function ColorworkEditorScreen({ navigation, route }) {
           </>
         )}
       </View>
+
+      {referenceImage && (
+        <>
+          <Text style={styles.sectionLabel}>Assistente IA</Text>
+          <View style={styles.providerRow}>
+            {['groq','gemini','openai'].map(p => (
+              <TouchableOpacity
+                key={p}
+                style={[styles.providerBtn, aiProvider === p && styles.providerBtnActive]}
+                onPress={() => setAiProvider(p)}
+              >
+                <Text style={[styles.providerText, aiProvider === p && styles.providerTextActive]}>{p === 'groq' ? 'Groq (grátis)' : p === 'gemini' ? 'Gemini' : 'OpenAI'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.aiConvertBtn} onPress={handleAIConvert} disabled={aiLoading}>
+            {aiLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.aiConvertBtnText}>🤖 {t.imageToChartAutoFill}</Text>}
+          </TouchableOpacity>
+        </>
+      )}
 
       <View style={styles.projectRow}>
         <TouchableOpacity style={styles.projectBtn} onPress={() => setProjectModal(true)}>
@@ -656,6 +727,13 @@ const styles = StyleSheet.create({
   colorCheck: { fontSize: 16, fontWeight: 'bold' },
   addColorBtn: { width: 34, height: 34, borderRadius: 6, borderWidth: 2, borderColor: '#1A237E', backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
   addColorBtnText: { fontSize: 18, color: '#1A237E', fontWeight: 'bold', lineHeight: 20 },
+  providerRow: { flexDirection: 'row', gap: 4, width: '100%', marginTop: 4 },
+  providerBtn: { flex: 1, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#DDD', borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
+  providerBtnActive: { borderColor: '#1A237E', backgroundColor: '#E8EAF6' },
+  providerText: { fontSize: 12, color: '#666', fontWeight: '600' },
+  providerTextActive: { color: '#1A237E' },
+  aiConvertBtn: { backgroundColor: '#FF6B35', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 20, alignItems: 'center', marginTop: 4, width: '100%' },
+  aiConvertBtnText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
   generateBtn: { backgroundColor: '#1A237E', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center', marginTop: 16, width: '100%' },
   btnDisabled: { opacity: 0.6 },
   generateBtnText: { fontSize: 18, color: '#FFF', fontWeight: 'bold' },

@@ -555,10 +555,23 @@ def colorwork_editor_pdf():
         gauge_rows = int(data.get('gauge_rows', 30))
         image_b64 = data.get('image_base64', None)
         colors = data.get('colors', [])
+        project_name = data.get('project_name', None)
+        notes = data.get('notes', None)
+        needle = data.get('needle', None)
+        lang = data.get('lang', 'pt')
 
         pdf_filename = f"{uuid.uuid4()}.pdf"
         pdf_path = os.path.join(OUTPUT_FOLDER, pdf_filename)
-        generate_colorwork_editor_pdf(sections, pdf_path, garment_type, gauge_st, gauge_rows, image_b64, colors)
+        kw = {}
+        if project_name:
+            kw['project_name'] = project_name
+        if notes:
+            kw['notes'] = notes
+        if needle:
+            kw['needle'] = needle
+        if lang:
+            kw['lang'] = lang
+        generate_colorwork_editor_pdf(sections, pdf_path, garment_type, gauge_st, gauge_rows, image_b64, colors, **kw)
 
         total_w = max((s.get('width', 0) for s in sections), default=0)
         total_h = max((s.get('height', 0) for s in sections), default=0)
