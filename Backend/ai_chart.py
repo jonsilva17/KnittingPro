@@ -60,10 +60,13 @@ def _parse_grid(response_text, expected_w, expected_h):
         raise ValueError("AI response did not contain a valid grid")
 
     actual_h = len(grid)
-    actual_w = len(grid[0]) if grid else 0
+    actual_w = max(len(r) for r in grid) if grid else 0
 
     if actual_w == 0:
         raise ValueError("AI returned empty grid")
+
+    # Normalize rows to uniform width
+    grid = [row[:actual_w] + ["m"] * (actual_w - len(row)) for row in grid]
 
     if actual_h == expected_h and actual_w == expected_w:
         return grid
