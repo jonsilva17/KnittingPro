@@ -196,7 +196,20 @@ def generate_with_groq(image_data, width, height, pattern_name=None):
     prompt = _build_prompt(width, height, pattern_name)
     model = GROQ_MODEL
 
-    print(f"Calling Groq model={model} for {width}x{height} grid")
+    # Groq has 8192 max output tokens, so large grids won't fit.
+    # Scale down if needed (max ~40 cols ~68 rows to stay under token limit)
+    scale = 1.0
+    gen_w, gen_h = width, height
+    max_cells = 2700  # ~40x68 = fits in ~7000 tokens with JSON overhead
+    if width * height > max_cells:
+        scale = min(1.0, (max_cells / (width * height)) ** 0.5)
+        gen_w = max(10, round(width * scale))
+        gen_h = max(10, round(height * scale))
+        print(f"Groq: scaling grid {width}x{height} -> {gen_w}x{gen_h} (scale={scale:.2f})")
+
+    print(f"Calling Groq model={model} for {gen_w}x{gen_h} grid")
+
+    grid_prompt = prompt.replace(f"{width} columns", f"{gen_w} columns").replace(f"{height} rows", f"{gen_h} rows")
 
     try:
         resp = requests.post(
@@ -211,7 +224,7 @@ def generate_with_groq(image_data, width, height, pattern_name=None):
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": prompt},
+                            {"type": "text", "text": grid_prompt},
                             {
                                 "type": "image_url",
                                 "image_url": {
@@ -221,7 +234,7 @@ def generate_with_groq(image_data, width, height, pattern_name=None):
                         ],
                     }
                 ],
-                "max_tokens": 16000,
+                "max_tokens": 8192,
                 "temperature": 0.1,
             },
             timeout=120,
@@ -242,7 +255,34 @@ def generate_with_groq(image_data, width, height, pattern_name=None):
     data = resp.json()
     text = data["choices"][0]["message"]["content"]
     print(f"Groq response received ({len(text)} chars)")
-    return _parse_grid(text, width, height)
+
+    grid = _parse_grid(text, gen_w, gen_h)
+
+    # Upscale if needed
+    if scale < 1.0:
+        print(f"Groq: upscaling {gen_w}x{gen_h} -> {width}x{height}")
+        grid = _upscale_grid(grid, width, height)
+
+    return grid
+
+
+def _upscale_grid(small_grid, target_w, target_h):
+    """Bilinear-like upscale for stitch grids."""
+    from PIL import Image
+    sh = len(small_grid)
+    sw = len(small_grid[0]) if small_grid else 1
+    img = Image.new("L", (sw, sh))
+    for y in range(sh):
+        for x in range(sw):
+            img.putpixel((x, y), 0 if small_grid[y][x] == "l" else 255)
+    img_resized = img.resize((target_w, target_h), Image.LANCZOS)
+    new_grid = []
+    for y in range(target_h):
+        row = []
+        for x in range(target_w):
+            row.append("m" if img_resized.getpixel((x, y)) >= 128 else "l")
+        new_grid.append(row)
+    return new_grid
 
 
 def generate_grid(image_data, width, height, provider="openai", pattern_name=None):
